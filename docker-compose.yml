@@ -1,0 +1,47 @@
+services:
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  db:
+    image: postgres:15
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-iot_monitoring}
+    ports:
+      - "5432:5432"
+
+  emqx:
+    image: emqx:5.1.0
+    ports:
+      - "1883:1883"
+      - "8083:8083"
+      - "8883:8883"
+      - "8084:8084"
+      - "18083:18083"
+    environment:
+      EMQX_NAME: "iot_broker"
+      EMQX_HOST: "127.0.0.1"
+
+  app:
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: "postgresql://postgres:postgres@db:5432/iot_monitoring"
+      MQTT_BROKER_HOST: "emqx"
+      REDIS_URL: "redis://redis:6379/0"
+    depends_on:
+      - db
+      - emqx
+      - redis
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+
+volumes:
+  postgres_data:
