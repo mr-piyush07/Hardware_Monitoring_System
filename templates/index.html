@@ -1,0 +1,1061 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IoT Guard | Professional Infrastructure Intelligence</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+
+<body>
+
+    <!-- Auth Section -->
+    <section id="auth-section">
+        <div class="auth-box">
+            <div class="brand-logo">
+                <i class="fas fa-shield-halved"></i>
+                <h1>IoT Guard</h1>
+                <p>VIGILANT INFRASTRUCTURE</p>
+            </div>
+
+            <div id="auth-tabs" style="display: flex; margin-bottom: 30px; border-bottom: 2px solid var(--border);">
+                <button id="login-tab-btn" class="active"
+                    style="flex: 1; background: none; border: none; color: #fff; padding: 10px; cursor: pointer; font-weight: 600;"
+                    onclick="toggleAuthMode(true)">Login</button>
+                <button id="register-tab-btn"
+                    style="flex: 1; background: none; border: none; color: var(--text-muted); padding: 10px; cursor: pointer; font-weight: 600;"
+                    onclick="toggleAuthMode(false)">Register</button>
+            </div>
+
+            <form id="auth-form">
+                <div id="full-name-group" class="input-group hidden">
+                    <label>Full Name</label>
+                    <input type="text" id="full_name" placeholder="John Doe">
+                </div>
+                <div id="role-group" class="input-group hidden">
+                    <label>System Role</label>
+                    <select id="role_select">
+                        <option value="user">User</option>
+                        <option value="subadmin">Sub Admin</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Organization Email</label>
+                    <input type="email" id="email" required placeholder="admin@infrastructure.io">
+                </div>
+                <div class="input-group">
+                    <label>Secure Password</label>
+                    <input type="password" id="password" required placeholder="••••••••••••">
+                </div>
+                <div id="confirm-pass-group" class="input-group hidden">
+                    <label>Confirm Password</label>
+                    <input type="password" id="confirm_password" placeholder="••••••••••••">
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 25px;">
+                    <input type="checkbox" id="remember_node" style="width: 18px; height: 18px;">
+                    <label for="remember_node" style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Remember
+                        Node</label>
+                </div>
+
+                <button type="submit" id="auth-btn" class="primary-btn"
+                    style="width: 100%; justify-content: center; height: 55px; font-size: 1.1rem;">
+                    <span id="auth-btn-text">Log In</span>
+                </button>
+            </form>
+
+            <div style="margin-top: 30px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
+                <p><i class="fas fa-lock" style="margin-right: 5px;"></i> ENCRYPTED AES-256 | V2.4 INFRASTRUCTURE</p>
+            </div>
+        </div>
+
+        <!-- Decoration from images -->
+        <div id="auth-decoration"
+            style="position: fixed; bottom: 40px; right: 40px; background: rgba(15,15,18,0.8); border: 1px solid var(--border); border-radius: 20px; padding: 20px; width: 300px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: flex-start;">
+            <div style="background: var(--accent-glow); padding: 10px; border-radius: 12px; color: var(--accent);">
+                <i class="fas fa-chart-line"></i>
+            </div>
+            <div>
+                <h4 style="font-size: 0.9rem; margin-bottom: 5px;">Operational Insight</h4>
+                <p style="font-size: 0.75rem; color: var(--text-muted);">Connecting to the global sentinel network.
+                    Ensure MFA device is synchronized.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Main Dashboard Section -->
+    <section id="dashboard-section" class="hidden">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar">
+            <div class="brand" style="margin-bottom: 30px;">
+                <h2>IoT Guard</h2>
+                <p>Vigilant Infrastructure</p>
+            </div>
+
+            <div class="nav-group" style="overflow-y: auto; flex: 1;">
+                <button class="nav-item active" onclick="switchTab('overview')">
+                    <i class="fas fa-eye"></i> Dashboard
+                </button>
+                <button class="nav-item" onclick="switchTab('dashboard')">
+                    <i class="fas fa-th-large"></i> Overview
+                </button>
+                <button class="nav-item admin-or-subadmin hidden" onclick="switchTab('fleet')">
+                    <i class="fas fa-chart-line"></i> Fleet Matrix
+                </button>
+                <button class="nav-item" onclick="switchTab('details')">
+                    <i class="fas fa-microchip"></i> Details
+                </button>
+                <button class="nav-item" onclick="switchTab('tickets')">
+                    <i class="fas fa-ticket-alt"></i> Tickets
+                </button>
+                <button class="nav-item" onclick="switchTab('logs')">
+                    <i class="fas fa-terminal"></i> Traffic Stream
+                </button>
+
+                <!-- Role Protected Tabs -->
+                <button class="nav-item admin-or-subadmin hidden" onclick="switchTab('integration')">
+                    <i class="fas fa-network-wired"></i> Device Integration
+                </button>
+                <button class="nav-item admin-or-subadmin hidden" onclick="switchTab('alerts')">
+                    <i class="fas fa-bell"></i> Alerts & Rules
+                </button>
+                <button class="nav-item admin-only hidden" onclick="switchTab('firmware')">
+                    <i class="fas fa-code-branch"></i> Firmware Lab
+                </button>
+                <button class="nav-item admin-or-subadmin hidden" onclick="switchTab('incidents')">
+                    <i class="fas fa-exclamation-triangle"></i> Incidents
+                </button>
+                <button class="nav-item admin-only hidden" onclick="switchTab('users')">
+                    <i class="fas fa-users-cog"></i> Users
+                </button>
+            </div>
+
+            <div class="nav-group" style="margin-top: auto; padding-top: 10px;">
+                <button class="nav-item" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </aside>
+
+        <!-- Dynamic Content Viewport -->
+        <main class="main-viewport" id="main-content" style="display: flex; flex-direction: column;">
+
+            <!-- Header (Global) -->
+            <div class="viewport-header"
+                style="flex-shrink: 0; margin-bottom: 25px; display: flex; justify-content: space-between; align-items: center;">
+                <div id="page-header-info">
+                    <p class="breadcrumb" id="tab-breadcrumb">Fleet / Core</p>
+                    <h1 class="viewport-title" id="tab-title">System Health Matrix</h1>
+                </div>
+
+                <!-- Global Status Rollup Chips -->
+                <div class="topbar-status" id="topbar-status" style="margin-left: auto; margin-right: 30px;">
+                    <span class="status-chip chip-down" id="chip-down" title="Devices with no recent telemetry"><i
+                            class="fas fa-exclamation-circle"></i> <span id="chip-down-val">0</span></span>
+                    <span class="status-chip chip-warn" id="chip-warn" title="Devices in warning range"><i
+                            class="fas fa-exclamation-triangle"></i> <span id="chip-warn-val">0</span></span>
+                    <span class="status-chip chip-up" id="chip-up" title="Devices reporting normally"><i
+                            class="fas fa-check-circle"></i> <span id="chip-up-val">0</span></span>
+                    <span class="status-chip chip-paused" id="chip-paused" title="Open support tickets"><i
+                            class="fas fa-pause-circle"></i> <span id="chip-paused-val">0</span></span>
+                </div>
+
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <div style="text-align: right;">
+                        <p id="user-display-name" style="font-weight: 600; font-size: 0.95rem;">Admin Portal</p>
+                        <p id="user-display-role"
+                            style="font-size: 0.75rem; color: var(--accent); text-transform: uppercase; font-weight: bold;">
+                            SUPERUSER</p>
+                    </div>
+                    <div
+                        style="width: 45px; height: 45px; background: #222; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 2px solid var(--border);">
+                        <i class="fas fa-user"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Banner Stack (mirrors PRTG-style setup nags) -->
+            <div id="banner-stack" class="banner-stack"></div>
+
+            <!-- Tab Containers -->
+            <div style="flex: 1; overflow-y: auto; padding-right: 5px;">
+
+                <!-- Overview Tab Content -->
+                <div id="overview-tab">
+                    <!-- PRTG Status Donut Rings -->
+                    <div class="overview-rings">
+                        <div class="ring-card glass-card">
+                            <div class="ring-chart-wrap">
+                                <canvas id="ring-devices"></canvas>
+                                <div class="ring-center" id="ring-devices-center">0</div>
+                            </div>
+                            <div class="ring-legend">
+                                <h4>Device Status</h4>
+                                <ul>
+                                    <li><span class="dot dot-down"></span> Silent <b id="legend-down">0</b></li>
+                                    <li><span class="dot dot-warn"></span> Warning <b id="legend-warn">0</b></li>
+                                    <li><span class="dot dot-up"></span> Reporting <b id="legend-up">0</b></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="ring-card glass-card">
+                            <div class="ring-chart-wrap">
+                                <canvas id="ring-types"></canvas>
+                                <div class="ring-center" id="ring-types-center">0</div>
+                            </div>
+                            <div class="ring-legend">
+                                <h4>Hardware Types</h4>
+                                <ul id="legend-types-list">
+                                    <li><span class="dot" style="background:#8b5cf6;"></span> ESP Node <b id="legend-type-esp">0</b></li>
+                                    <li><span class="dot" style="background:#3b82f6;"></span> LoRa GW <b id="legend-type-lora-gw">0</b></li>
+                                    <li><span class="dot" style="background:#06b6d4;"></span> LoRa Node <b id="legend-type-lora-node">0</b></li>
+                                    <li><span class="dot" style="background:#10b981;"></span> RasPi/Other <b id="legend-type-other">0</b></li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="ring-card glass-card">
+                            <div class="ring-chart-wrap">
+                                <canvas id="ring-alerts"></canvas>
+                                <div class="ring-center" id="ring-alerts-center">0</div>
+                            </div>
+                            <div class="ring-legend">
+                                <h4>Active Triggers</h4>
+                                <ul>
+                                    <li><span class="dot dot-down"></span> Critical <b id="legend-crit">0</b></li>
+                                    <li><span class="dot dot-warn"></span> Pending <b id="legend-pending">0</b></li>
+                                    <li><span class="dot dot-up"></span> Resolved <b id="legend-resolved">0</b></li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+
+
+                    <!-- Live Stats Strip -->
+                    <div class="stats-grid">
+                        <div class="stat-card" style="cursor:pointer;" onclick="switchTab('dashboard')">
+                            <div class="stat-label"><i class="fas fa-server"></i> Total Nodes</div>
+                            <div class="stat-value" id="stat-total-devices">—</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-check-circle"></i> Registered Fleet</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-label"><i class="fas fa-wifi"></i> Active Nodes</div>
+                            <div class="stat-value" id="stat-active-devices" style="color:var(--success);">—</div>
+                            <div class="stat-trend trend-up"><i class="fas fa-signal"></i> Reporting in last 10 min</div>
+                        </div>
+                        <div class="stat-card" style="cursor:pointer;" onclick="switchTab('alerts')">
+                            <div class="stat-label"><i class="fas fa-bell"></i> Active Triggers</div>
+                            <div class="stat-value" id="stat-active-alerts">—</div>
+                            <div class="stat-trend"><i class="fas fa-clock"></i> Monitoring Real-time</div>
+                        </div>
+                    </div>
+
+                    <!-- Bottom 2-col: Fleet Health & Device Activity -->
+                    <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 30px; margin-top: 30px;">
+                        <div class="matrix-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="font-size: 1rem;">FLEET HEALTH</h3>
+                                <button onclick="loadOverviewData()" title="Refresh Data" style="background:none;border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:4px 10px;cursor:pointer;font-size:0.75rem;transition:all 0.2s;" onmouseenter="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseleave="this.style.color='var(--text-muted)';this.style.borderColor='var(--border)'">
+                                    <i class="fas fa-sync-alt"></i> Refresh
+                                </button>
+                            </div>
+                            <div style="display: flex; flex-direction: column; gap: 16px;">
+                                <div>
+                                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:6px;">
+                                        <span style="color:var(--success);"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Reporting</span>
+                                        <b id="bar-reporting">0</b>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                                        <div id="bar-reporting-fill" style="height:100%;background:var(--success);border-radius:6px;width:0%;transition:width 0.7s ease;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:6px;">
+                                        <span style="color:var(--warning);"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Warning</span>
+                                        <b id="bar-warning">0</b>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                                        <div id="bar-warning-fill" style="height:100%;background:var(--warning);border-radius:6px;width:0%;transition:width 0.7s ease;"></div>
+                                    </div>
+                                </div>
+                                <div>
+                                    <div style="display:flex;justify-content:space-between;font-size:0.8rem;margin-bottom:6px;">
+                                        <span style="color:var(--danger);"><i class="fas fa-circle" style="font-size:0.6rem;"></i> Silent</span>
+                                        <b id="bar-silent">0</b>
+                                    </div>
+                                    <div style="background:rgba(255,255,255,0.07);border-radius:6px;height:7px;overflow:hidden;">
+                                        <div id="bar-silent-fill" style="height:100%;background:var(--danger);border-radius:6px;width:0%;transition:width 0.7s ease;"></div>
+                                    </div>
+                                </div>
+                                <div style="margin-top:10px;padding-top:15px;border-top:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+                                    <div style="display:flex;align-items:center;gap:8px;">
+                                        <div style="width:8px;height:8px;border-radius:50%;background:var(--success);animation:pulse 2s infinite;"></div>
+                                        <span style="font-size:0.8rem;color:var(--text-muted);">System Status</span>
+                                    </div>
+                                    <span id="overview-system-status" style="font-size:0.8rem;font-weight:700;color:var(--success);">OPERATIONAL</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="matrix-card">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                <h3 style="font-size: 1rem;">RECENT DEVICE ACTIVITY</h3>
+                                <span style="font-size:0.7rem;padding:3px 10px;border-radius:20px;background:rgba(16,185,129,0.12);color:var(--success);border:1px solid rgba(16,185,129,0.25);">
+                                    <span style="display:inline-block;width:6px;height:6px;background:var(--success);border-radius:50%;margin-right:4px;animation:pulse 2s infinite;"></span>LIVE
+                                </span>
+                            </div>
+                            <div id="overview-device-activity" style="display:flex;flex-direction:column;gap:10px;max-height:240px;overflow-y:auto;">
+                                <p style="color:var(--text-muted);font-size:0.85rem;">Loading device activity…</p>
+                            </div>
+                            <div style="flex:1;height:90px;margin-top:15px;">
+                                <canvas id="trafficBarChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <!-- Dashboard Tab Content (Broadcasters List) -->
+                <div id="dashboard-tab" class="hidden">
+                    <div class="viewport-header" style="margin-bottom: 25px;">
+                        <h2>Broadcaster Fleet Profile</h2>
+                        <button class="primary-btn admin-or-subadmin" onclick="showRegisterModal()">
+                            <i class="fas fa-plus"></i> Register New Node
+                        </button>
+                    </div>
+                    <div id="devices-container" class="integration-grid">
+                        <!-- Dynamic devices will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Fleet Matrix Tab -->
+                <div id="fleet-tab" class="hidden">
+                    <div class="viewport-header" style="margin-bottom: 25px;">
+                        <h2>Live Telemetry Matrix</h2>
+                    </div>
+                    <div id="fleet-matrix-grid"
+                        style="display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: 20px;">
+                        <!-- Live graphs will be injected here -->
+                    </div>
+                </div>
+
+                <!-- Details Tab -->
+                <div id="details-tab" class="hidden">
+                    <div class="viewport-header" style="margin-bottom: 20px;">
+                        <h2>Advanced Analytics Viewport</h2>
+                        <div id="active-device-badge" class="badge badge-low" style="display: none;"></div>
+                    </div>
+
+                    <div id="device-selection-prompt" class="matrix-card" style="text-align: center; padding: 60px;">
+                        <i class="fas fa-microchip"
+                            style="font-size: 3rem; color: var(--accent-glow); margin-bottom: 20px;"></i>
+                        <h3>Select a device from Overview or list to view active intelligence</h3>
+                        <p style="color: var(--text-muted); margin-top: 10px;">Deep trajectory graphs and live console
+                            stream available for active broadcasters.</p>
+                    </div>
+
+                    <div id="details-content" class="hidden">
+                        <!-- Sub Tabs for details analytics (similar to modal tabs in prompt) -->
+                        <div class="m-tabs">
+                            <button id="detail-tab-link-visuals" class="m-tab-link active"
+                                onclick="switchDetailSubTab('visuals')">Trajectory Graphs</button>
+                            <button id="detail-tab-link-console" class="m-tab-link"
+                                onclick="switchDetailSubTab('console')">Packet Stream</button>
+                            <button id="detail-tab-link-alerts" class="m-tab-link"
+                                onclick="switchDetailSubTab('alerts')">Trigger History</button>
+                            <button id="detail-tab-link-management" class="m-tab-link admin-only"
+                                onclick="switchDetailSubTab('management')">Node Config</button>
+                        </div>
+
+                        <!-- Subtab visual content -->
+                        <div id="detail-subtab-visuals" class="m-tab-content">
+                            <!-- Custom ultrasonic radar container -->
+                            <div id="custom-visuals-container"
+                                style="margin-bottom: 20px; display: flex; flex-wrap: wrap; gap: 20px;"></div>
+                            <!-- Charts container -->
+                            <div id="charts-container" style="display: grid; grid-template-columns: 1fr; gap: 25px;">
+                                <!-- Live charts will be loaded here -->
+                            </div>
+                        </div>
+
+                        <!-- Subtab console packet stream content -->
+                        <div id="detail-subtab-console" class="m-tab-content hidden">
+                            <div id="device-console" class="terminal-view" style="height: 450px; overflow-y: auto;">
+                            </div>
+                        </div>
+
+                        <!-- Subtab alert details trigger history logs content -->
+                        <div id="detail-subtab-alerts" class="m-tab-content hidden">
+                            <div class="matrix-card">
+                                <table class="data-table" style="width: 100%;">
+                                    <thead>
+                                        <tr style="text-align: left; color: var(--text-muted);">
+                                            <th>Timestamp</th>
+                                            <th>Alert Message</th>
+                                            <th>Status</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="modal-alert-logs">
+                                        <!-- Alert logs for chosen device -->
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+
+                        <!-- Subtab management node config content -->
+                        <div id="detail-subtab-management" class="m-tab-content hidden">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px;">
+                                <div class="glass-card">
+                                    <h4>Identity Information</h4>
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin: 15px 0;">Broadcaster
+                                        configuration metadata.</p>
+                                    <div class="input-group">
+                                        <label>Broadcaster ID (HWID)</label>
+                                        <input type="text" id="mgmt-hwid" readonly style="opacity: 0.6;">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Broadcaster Name</label>
+                                        <input type="text" id="mgmt-name" readonly style="opacity: 0.6;">
+                                    </div>
+                                </div>
+                                <div class="glass-card" style="border-color: var(--danger);">
+                                    <h4 style="color: var(--danger)">Decommission Node</h4>
+                                    <p style="font-size: 0.8rem; color: var(--text-muted); margin: 15px 0;">This will
+                                        permanently remove the hardware profile from the Guard network.</p>
+                                    <button class="primary-btn" id="delete-device-btn"
+                                        style="background: var(--danger); width: 100%; justify-content: center;">Destroy
+                                        Broadcaster</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tickets Tab -->
+                <div id="tickets-tab" class="hidden">
+                    <div class="system-health-matrix" style="margin-bottom: 40px;">
+                        <div class="matrix-card">
+                            <p class="text-muted" style="font-size: 0.8rem;">TOTAL TICKETS</p>
+                            <h1 id="ticket-count-total">0</h1>
+                            <p style="font-size: 0.8rem; color: var(--success);"><i class="fas fa-arrow-up"></i> Dynamic
+                                count</p>
+                        </div>
+                        <div class="matrix-card">
+                            <p class="text-muted" style="font-size: 0.8rem;">OPEN TICKETS</p>
+                            <h1 id="ticket-count-open">0</h1>
+                            <p style="font-size: 0.8rem; color: var(--danger);">Urgency focus needed</p>
+                        </div>
+                        <div class="matrix-card">
+                            <p class="text-muted" style="font-size: 0.8rem;">RESOLVED TICKETS</p>
+                            <h1 id="ticket-count-resolved">0</h1>
+                            <p style="font-size: 0.8rem; color: var(--success);"><i class="fas fa-check-circle"></i>
+                                Resolved</p>
+                        </div>
+                    </div>
+
+                    <div class="viewport-header" style="margin-top: 40px;">
+                        <h2>Support Tickets Queue</h2>
+                        <button class="primary-btn" onclick="showTicketModal()">
+                            <i class="fas fa-plus"></i> Submit Support Report
+                        </button>
+                    </div>
+
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>Ticket ID</th>
+                                <th>Subject</th>
+                                <th>Device Link</th>
+                                <th>Priority</th>
+                                <th>Status</th>
+                                <th>Date Created</th>
+                                <th style="width: 50px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody id="tickets-list-body">
+                            <!-- Dynamic rows -->
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Device Integration Tab (Admin/SubAdmin) -->
+                <div id="integration-tab" class="hidden">
+                    <div class="viewport-header">
+                        <div>
+                            <h2>Device Integration Abstraction</h2>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Manage and monitor
+                                hardware gateway credentials and sync builders.</p>
+                        </div>
+                    </div>
+
+                    <div id="integration-container" class="integration-grid">
+                        <!-- Integration cards injected here -->
+                    </div>
+                </div>
+
+                <!-- Alerts & Rules Tab (Admin/SubAdmin) -->
+                <div id="alerts-tab" class="hidden">
+                    <div class="viewport-header">
+                        <h2>Deploy Intelligence Triggers</h2>
+                        <button class="primary-btn" id="add-smtp-btn">
+                            <i class="fas fa-envelope"></i> Setup SMTP Relay
+                        </button>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1.5fr; gap: 30px;">
+                        <!-- Side widgets -->
+                        <div style="display: flex; flex-direction: column; gap: 30px;">
+                            <div class="glass-card">
+                                <h3 style="margin-bottom: 20px;">Configured SMTP Nodes</h3>
+                                <div id="smtp-list" class="smtp-grid"
+                                    style="display: flex; flex-direction: column; gap: 10px;"></div>
+                            </div>
+                            <div class="glass-card">
+                                <div
+                                    style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                                    <h3 style="margin: 0;">Notification Templates</h3>
+                                    <button class="accent-btn" id="add-template-btn"
+                                        style="padding: 4px 12px; font-size: 0.75rem;">+ Create Template</button>
+                                </div>
+                                <div id="template-list" class="rules-grid"
+                                    style="display: flex; flex-direction: column; gap: 10px;"></div>
+                            </div>
+                        </div>
+
+                        <!-- Rule registration and lists -->
+                        <div class="glass-card">
+                            <h3 style="margin-bottom: 10px;">Deploy Trigger Rule</h3>
+                            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">Define
+                                conditions that trigger alerts via SMTP nodes.</p>
+
+                            <form id="alert-rule-form">
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="input-group">
+                                        <label>Rule Name</label>
+                                        <input type="text" id="alert-rule-name" placeholder="Overheat Critical Alert">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Trigger Type</label>
+                                        <select id="alert-trigger-type">
+                                            <option value="state">Sensor Threshold (GT, LT, EQ)</option>
+                                            <option value="heartbeat">Heartbeat / Offline (No Data)</option>
+                                        </select>
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1.5fr 1fr; gap: 15px;">
+                                    <div class="input-group">
+                                        <label>Hardware Profile</label>
+                                        <select id="alert-hwid-select">
+                                            <option value="">Select Hardware...</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group" id="sensor-key-group">
+                                        <label>Sensor Key (e.g. temp_0)</label>
+                                        <input type="text" id="alert-sensor" placeholder="temp_0">
+                                    </div>
+                                </div>
+
+                                <div id="condition-params"
+                                    style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 15px;">
+                                    <div class="input-group" id="operator-group">
+                                        <label>Operator</label>
+                                        <select id="alert-op">
+                                            <option value=">">Is Greater Than (&gt;)</option>
+                                            <option value="<">Is Less Than (&lt;)</option>
+                                            <option value="==">Is Equal To (==)</option>
+                                        </select>
+                                    </div>
+                                    <div class="input-group">
+                                        <label id="threshold-label">Threshold / Timeout</label>
+                                        <input type="number" id="alert-val" step="0.1" value="40">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Cooldown (Sec)</label>
+                                        <input type="number" id="alert-cooldown" value="300" min="0">
+                                    </div>
+                                </div>
+
+                                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                    <div class="input-group">
+                                        <label>Recipient Email(s)</label>
+                                        <input type="text" id="alert-emails" placeholder="alerts@company.com">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>SMTP Relay Server</label>
+                                        <select id="alert-smtp-select"></select>
+                                    </div>
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Notification Template (Subject & Body)</label>
+                                    <select id="alert-template-select">
+                                        <option value="custom">Custom Template (Manual Entry)</option>
+                                    </select>
+                                </div>
+
+                                <div id="custom-template-fields">
+                                    <div class="input-group">
+                                        <label>Email Subject</label>
+                                        <input type="text" id="alert-subject"
+                                            placeholder="ALERT: {device} sensor {sensor} is {value}">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Email Body</label>
+                                        <textarea id="alert-body"
+                                            placeholder="Critical threshold reached on {device}!\nSensor: {sensor}\nValue: {value}"
+                                            style="height: 100px; width: 100%;"></textarea>
+                                        <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px;">
+                                            Available Placeholders: <code>{device}</code>, <code>{sensor}</code>,
+                                            <code>{value}</code></p>
+                                    </div>
+                                </div>
+
+                                <button type="submit" class="primary-btn"
+                                    style="width: 100%; justify-content: center; margin-top: 10px;">Deploy Active
+                                    Trigger</button>
+                            </form>
+                        </div>
+                    </div>
+
+                    <div class="glass-card" style="margin-top: 30px;">
+                        <h3>Active Trigger Rule List</h3>
+                        <div id="rules-list" class="rules-grid"
+                            style="display: flex; flex-direction: column; gap: 10px; margin-top: 20px;"></div>
+                    </div>
+                </div>
+
+                <!-- Firmware Lab Tab -->
+                <div id="firmware-tab" class="hidden">
+                    <div class="viewport-header" style="margin-bottom: 25px;">
+                        <div>
+                            <h2>Firmware Lab</h2>
+                            <p style="color:var(--text-muted);font-size:0.85rem;margin-top:4px;">Select your sensors, configure pins, and generate ready-to-flash Arduino code</p>
+                        </div>
+                        <button id="generate-code-btn" class="primary-btn" style="padding:10px 24px;">
+                            <i class="fas fa-bolt"></i> Build Firmware
+                        </button>
+                    </div>
+
+                    <!-- 3-column layout: Config | Sensor Picker | Code Output -->
+                    <div style="display:grid;grid-template-columns:320px 1fr 1fr;gap:20px;align-items:start;">
+
+                        <!-- Col 1: Device Config -->
+                        <div style="display:flex;flex-direction:column;gap:16px;">
+                            <div class="matrix-card" style="padding:22px;">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
+                                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:0.85rem;"><i class="fas fa-microchip"></i></div>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Device Setup</h3>
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Hardware Architecture</label>
+                                    <select id="gen-board" onchange="updateFirmwareForm()">
+                                        <option value="esp32">ESP32 (Dual Core)</option>
+                                        <option value="esp8266">ESP8266 (NodeMCU)</option>
+                                        <option value="lora_gateway">LoRa Gateway</option>
+                                        <option value="lora_node">LoRa Node</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Communication Protocol</label>
+                                    <select id="gen-protocol">
+                                        <option value="http">HTTP POST (REST API)</option>
+                                        <option value="mqtt">MQTT Publish</option>
+                                    </select>
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Backend API URL</label>
+                                    <input type="text" id="gen-api-url" value="">
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Hardware ID</label>
+                                    <input type="text" id="gen-hwid" placeholder="Copy from Device panel">
+                                </div>
+
+                                <div class="input-group">
+                                    <label>Secret Key</label>
+                                    <input type="password" id="gen-secret" placeholder="••••••••••••">
+                                </div>
+
+                                <div id="wifi-config-group">
+                                    <div class="input-group">
+                                        <label>WiFi SSID</label>
+                                        <input type="text" id="gen-wifi-ssid" placeholder="Network Name">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>WiFi Password</label>
+                                        <input type="password" id="gen-wifi-pass" placeholder="••••••••">
+                                    </div>
+                                </div>
+
+                                <div id="lora-config-group" style="display:none;">
+                                    <div style="height:1px;background:var(--border);margin:4px 0 14px;"></div>
+                                    <p style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;"><i class="fas fa-broadcast-tower"></i> LoRa Parameters</p>
+                                    <div class="input-group">
+                                        <label>Frequency (Hz)</label>
+                                        <input type="number" id="gen-lora-freq" value="915000000">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Sync Word (Hex)</label>
+                                        <input type="text" id="gen-lora-sync" value="0x12">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>SS Pin</label>
+                                        <input type="number" id="gen-lora-ss" value="5">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>RST Pin</label>
+                                        <input type="number" id="gen-lora-rst" value="14">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>DIO0 Pin</label>
+                                        <input type="number" id="gen-lora-dio0" value="2">
+                                    </div>
+                                </div>
+
+                                <div class="input-group" style="margin-top:4px;">
+                                    <label>Send Interval (ms)</label>
+                                    <input type="number" id="gen-interval" value="10000" placeholder="10000">
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Col 2: Sensor Picker + Pin Config -->
+                        <div style="display:flex;flex-direction:column;gap:16px;" id="sensor-section">
+                            <!-- Sensor Library -->
+                            <div class="matrix-card" style="padding:22px;">
+                                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                                    <div style="display:flex;align-items:center;gap:10px;">
+                                        <div style="width:32px;height:32px;border-radius:8px;background:rgba(6,182,212,0.15);display:flex;align-items:center;justify-content:center;color:#06b6d4;font-size:0.85rem;"><i class="fas fa-plug"></i></div>
+                                        <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Sensor Library</h3>
+                                    </div>
+                                    <span id="selected-sensor-count" style="background:rgba(139,92,246,0.15);color:var(--accent);border:1px solid rgba(139,92,246,0.3);border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">0 selected</span>
+                                </div>
+                                <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:14px;">Click a sensor to add it to your build. Pins are auto-suggested for ESP32.</p>
+
+                                <div id="sensor-library-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:8px;">
+                                    <!-- Populated by JS -->
+                                </div>
+                            </div>
+
+                            <!-- Selected Sensors Pin Config -->
+                            <div class="matrix-card" style="padding:22px;" id="pin-config-card">
+                                <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
+                                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;color:var(--success);font-size:0.85rem;"><i class="fas fa-code-branch"></i></div>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Pin Configuration</h3>
+                                </div>
+                                <div id="pin-config-list" style="display:flex;flex-direction:column;gap:10px;">
+                                    <p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:20px 0;"><i class="fas fa-arrow-up" style="display:block;margin-bottom:8px;font-size:1.2rem;opacity:0.4;"></i>Select sensors above to configure their pins</p>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Col 3: Code Preview -->
+                        <div class="matrix-card" style="padding:22px;">
+                            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+                                <div style="display:flex;align-items:center;gap:10px;">
+                                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;color:var(--warning);font-size:0.85rem;"><i class="fas fa-file-code"></i></div>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Source Preview</h3>
+                                </div>
+                                <div style="display:flex;gap:8px;">
+                                    <button id="copy-code-btn" class="accent-btn" style="padding:5px 14px;font-size:0.78rem;">
+                                        <i class="fas fa-copy"></i> Copy
+                                    </button>
+                                </div>
+                            </div>
+                            <!-- Filename badge -->
+                            <div style="display:flex;align-items:center;gap:8px;background:rgba(0,0,0,0.4);border:1px solid var(--border);border-radius:10px 10px 0 0;padding:8px 16px;border-bottom:none;">
+                                <div style="display:flex;gap:5px;">
+                                    <div style="width:10px;height:10px;border-radius:50%;background:#ef4444;"></div>
+                                    <div style="width:10px;height:10px;border-radius:50%;background:#f59e0b;"></div>
+                                    <div style="width:10px;height:10px;border-radius:50%;background:#10b981;"></div>
+                                </div>
+                                <span style="font-size:0.75rem;color:var(--text-muted);margin-left:6px;" id="firmware-filename">main_firmware.ino</span>
+                            </div>
+                            <div style="background:#0d0d12;border:1px solid var(--border);border-radius:0 0 12px 12px;padding:20px;height:580px;overflow-y:auto;">
+                                <pre id="code-display" style="font-family:'Fira Code',monospace;font-size:0.78rem;line-height:1.6;white-space:pre-wrap;word-break:break-word;"><span style="color:var(--text-muted);">// Configure your device and sensors, then click</span>
+<span style="color:var(--accent);">// ⚡ Build Firmware</span> <span style="color:var(--text-muted);">to generate code.</span></pre>
+                            </div>
+                        </div>
+
+                    </div>
+                </div>
+
+                <!-- Traffic Stream Tab (Logs) -->
+                <div id="logs-tab" class="hidden">
+                    <div class="viewport-header">
+                        <div>
+                            <h2>Traffic Packet Stream</h2>
+                            <p style="color: var(--text-muted); font-size: 0.9rem; margin-top: 5px;">Listen for
+                                real-time telemetry broadcasts across the network.</p>
+                        </div>
+                        <button id="clear-logs" class="accent-btn"><i class="fas fa-trash"></i> Clear Stream</button>
+                    </div>
+                    <div class="terminal-view" id="log-entries" style="height: 550px; overflow-y: auto;">
+                        <p style="color: var(--text-muted)">Connecting to local broadcaster...</p>
+                    </div>
+                </div>
+
+                <!-- Incidents Queue Tab -->
+                <div id="incidents-tab" class="hidden">
+                    <div class="viewport-header">
+                        <h2>Incidents Resolver Queue</h2>
+                    </div>
+                    <div class="matrix-card">
+                        <table class="data-table" style="width: 100%;">
+                            <thead>
+                                <tr style="text-align: left; color: var(--text-muted);">
+                                    <th>Timestamp</th>
+                                    <th>Device</th>
+                                    <th>Incident Message</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="incidents-container">
+                                <!-- Dynamic rule alerts list -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Users Tab (Admin) -->
+                <div id="users-tab" class="hidden">
+                    <div class="viewport-header">
+                        <h2>User Account Administration</h2>
+                    </div>
+                    <div class="glass-card">
+                        <div id="users-list-container" style="display: flex; flex-direction: column; gap: 15px;">
+                            <div class="empty-msg">Scanning credentials registry...</div>
+                        </div>
+                    </div>
+                </div>
+
+            </div>
+        </main>
+    </section>
+
+    <!-- Modals -->
+    <!-- Submit ticket modal -->
+    <div id="ticket-modal" class="modal hidden">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>Submit Support Report</h3>
+                <button class="accent-btn" onclick="hideModal('ticket-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="ticket-form">
+                <div class="input-group">
+                    <label>Select Device (Optional)</label>
+                    <select id="ticket_device_id"></select>
+                </div>
+                <div class="input-group">
+                    <label>Issue Subject</label>
+                    <input type="text" id="ticket_subject" required placeholder="Sensor reading high...">
+                </div>
+                <div class="input-group">
+                    <label>Problem Description</label>
+                    <textarea id="ticket_desc" required rows="4"
+                        placeholder="Describe the hardware issue in detail..."></textarea>
+                </div>
+                <div class="input-group">
+                    <label>Priority</label>
+                    <select id="ticket_priority">
+                        <option value="Low">Low</option>
+                        <option value="Medium" selected>Medium</option>
+                        <option value="High">High</option>
+                        <option value="Critical">Critical</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('ticket-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">Send
+                        Report</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Register Device Modal -->
+    <div id="register-modal" class="modal hidden">
+        <div class="modal-content">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>Register New Broadcaster</h3>
+                <button class="accent-btn" onclick="hideModal('register-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="device-form">
+                <div class="input-group">
+                    <label>Broadcast Name</label>
+                    <input type="text" id="device_name" required placeholder="Main Sensor Node">
+                </div>
+                <div class="input-group">
+                    <label>Unique Hardware ID (HWID)</label>
+                    <input type="text" id="hardware_id" required placeholder="ESP-XXXX-XXXX">
+                </div>
+                <div class="input-group">
+                    <label>Broadcaster Category</label>
+                    <select id="device_type">
+                        <option value="ESP32">ESP32 Core</option>
+                        <option value="ESP8266">ESP8266 Node</option>
+                        <option value="LORA_GATEWAY">LoRa Gateway</option>
+                        <option value="LORA_NODE">LoRa Node</option>
+                        <option value="OTHER">Generic HW</option>
+                    </select>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('register-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">Register
+                        Profile</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- SMTP Modal -->
+    <div id="smtp-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>SMTP Interface Deployment</h3>
+                <button class="accent-btn" onclick="hideModal('smtp-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="smtp-form">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Sender Email Address</label>
+                        <input type="email" id="smtp-from-email" required placeholder="name@company.com">
+                    </div>
+                    <div class="input-group">
+                        <label>Sender Name (Alias)</label>
+                        <input type="text" id="smtp-from-name" required placeholder="IoT Guard Monitor">
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 2fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>HELO Identifier</label>
+                        <input type="text" id="smtp-helo" value="IoT-Guard-Node">
+                    </div>
+                    <div class="input-group">
+                        <label>SMTP Relay Port</label>
+                        <select id="smtp-port">
+                            <option value="587">587 (TLS/STARTTLS)</option>
+                            <option value="465">465 (SSL)</option>
+                            <option value="25">25 (Legacy/Non-secure)</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label>SMTP Relay Server (Host)</label>
+                    <input type="text" id="smtp-host" required placeholder="smtp.gmail.com">
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>SMTP Authentication Type</label>
+                        <select id="smtp-auth">
+                            <option value="Standard">Standard SMTP Authentication</option>
+                            <option value="None">No Authentication</option>
+                            <option value="SASL">SASL Authentication</option>
+                        </select>
+                    </div>
+                    <div class="input-group">
+                        <label>Connection Security</label>
+                        <select id="smtp-security">
+                            <option value="TLS" selected>Auto-Negotiate (TLS 1.0 or higher)</option>
+                            <option value="SSL">SSL/TLS Method (Direct SSL)</option>
+                            <option value="None">Do not use connection security</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Relay Username</label>
+                        <input type="text" id="smtp-user" placeholder="SMTP Username">
+                    </div>
+                    <div class="input-group">
+                        <label>Relay App Password</label>
+                        <input type="password" id="smtp-pass" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div class="input-group"
+                    style="padding: 20px; background: rgba(139, 92, 246, 0.05); border-radius: 12px; border: 1px dashed var(--accent);">
+                    <label style="color: var(--accent); font-weight: 600;">System Connection Test</label>
+                    <p style="font-size: 0.75rem; color: var(--text-muted); margin-bottom: 12px;">Enter recipient email
+                        to verify SMTP relay handshake.</p>
+                    <input type="email" id="smtp-test-receiver" placeholder="test-recipient@example.com"
+                        style="margin-bottom: 10px;">
+                    <button type="button" id="test-smtp-btn" class="accent-btn" style="width: 100%;">Execute SMTP Test
+                        Handshake</button>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 20px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('smtp-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">Deploy & Save
+                        Configuration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Template Modal -->
+    <div id="template-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 600px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>Create Notification Template</h3>
+                <button class="accent-btn" onclick="hideModal('template-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="template-form">
+                <div class="input-group">
+                    <label>Template Name (Alias)</label>
+                    <input type="text" id="template-name" required placeholder="Standard Sensor Alert">
+                </div>
+                <div class="input-group">
+                    <label>Email Subject</label>
+                    <input type="text" id="template-subject" required
+                        placeholder="ALERT: {device} sensor {sensor} is {value}">
+                </div>
+                <div class="input-group">
+                    <label>Email Body</label>
+                    <textarea id="template-body" required
+                        placeholder="Device: {device}\nSensor: {sensor}\nValue: {value}\nTime: {time}"
+                        style="height: 150px; width: 100%; background: rgba(255,255,255,0.05); color: #fff; border: 1px solid var(--border); border-radius: 12px; padding: 12px;"></textarea>
+                    <p style="font-size: 0.7rem; color: var(--text-muted); margin-top: 5px;">Available Placeholders:
+                        <code>{device}</code>, <code>{sensor}</code>, <code>{value}</code></p>
+                </div>
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('template-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">Save
+                        Template</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="notification-toast" class="toast hidden">
+        <i class="fas fa-info-circle"></i>
+        <span id="toast-message">Message here</span>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+
+</html>
