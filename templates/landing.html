@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEXUS_CORE | Global Telemetry Hub</title>
+    <link rel="stylesheet" href="/static/landing.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;800;900&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <div class="page-wrapper">
+        <nav class="navbar">
+            <div class="nav-container">
+                <div class="brand-logo">
+                    <i class="fas fa-shield-halved"></i>
+                    <span class="brand-name">IOT<span class="brand-accent">_GUARD</span></span>
+                </div>
+                <div class="nav-actions">
+                    <button class="nav-btn nav-btn-secondary" onclick="goToLogin()">
+                        <i class="fas fa-sign-in-alt"></i>
+                        <span>Login</span>
+                    </button>
+                    <button class="nav-btn nav-btn-primary" onclick="goToSignUp()">
+                        <i class="fas fa-user-plus"></i>
+                        <span>Sign Up</span>
+                    </button>
+                </div>
+            </div>
+        </nav>
+
+        <section class="hero-section">
+            <div class="hero-bg-overlay"></div>
+            <div class="hero-content">
+                <div class="system-status-badge">
+                    <span class="status-dot"></span>
+                    <span class="status-text">SYSTEM.ONLINE</span>
+                </div>
+
+                <h1 class="hero-title">
+                    <span class="title-line">GLOBAL TELEMETRY</span>
+                    <span class="title-line title-accent">HUB</span>
+                </h1>
+
+                <p class="hero-subtitle">
+                    Real-time monitoring and control of distributed sensor fleets.
+                    Maintain high availability with predictive analytics and
+                    instant node diagnostics.
+                </p>
+
+                <div class="hero-buttons">
+                    <button class="cta-btn cta-primary" onclick="goToLogin()">
+                        <span class="cta-icon"><i class="fas fa-rocket"></i></span>
+                        <span class="cta-text">INITIALIZE SCAN</span>
+                    </button>
+                    <button class="cta-btn cta-secondary" onclick="scrollToFeatures()">
+                        <span class="cta-icon"><i class="fas fa-file-alt"></i></span>
+                        <span class="cta-text">VIEW LOGS</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="hero-scroll-indicator" onclick="scrollToStats()">
+                <i class="fas fa-chevron-down"></i>
+            </div>
+        </section>
+
+        <section class="stats-section" id="stats-section">
+            <div class="stats-container">
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">ACTIVE_NODES</span>
+                        <div class="stat-icon-wrap">
+                            <i class="fas fa-wifi"></i>
+                        </div>
+                    </div>
+                    <div class="stat-value-row">
+                        <span class="stat-value" data-target="14208">0</span>
+                        <span class="stat-trend trend-up">
+                            <i class="fas fa-chart-line"></i> +2.4%
+                        </span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">NETWORK_LATENCY</span>
+                    </div>
+                    <div class="stat-value-row">
+                        <span class="stat-value" data-target="24">0</span>
+                        <span class="stat-unit">ms</span>
+                    </div>
+                    <div class="stat-bar">
+                        <div class="stat-bar-fill" style="width: 24%;"></div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">PACKET_LOSS</span>
+                    </div>
+                    <div class="stat-value-row">
+                        <span class="stat-value" data-target="0.02" data-decimals="2">0</span>
+                        <span class="stat-unit">%</span>
+                        <span class="stat-status nominal">NOMINAL</span>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-header">
+                        <span class="stat-label">CRITICAL_ALERTS</span>
+                    </div>
+                    <div class="stat-value-row">
+                        <span class="stat-value stat-danger" data-target="0">0</span>
+                        <span class="status-indicator status-ok"></span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="features-section" id="features-section">
+            <div class="section-header">
+                <span class="section-tag">SYSTEM_CAPABILITIES</span>
+                <h2 class="section-title">Advanced Monitoring Infrastructure</h2>
+                <p class="section-subtitle">Enterprise-grade IoT fleet management with real-time intelligence</p>
+            </div>
+
+            <div class="features-grid">
+                <div class="feature-card">
+                    <div class="feature-icon">
+                        <i class="fas fa-satellite-dish"></i>
+                    </div>
+                    <h3 class="feature-title">OTA Updates</h3>
+                    <p class="feature-desc">Push firmware to remote nodes in batches with secure rollback capability.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm"></span>
+                        <span>STATUS: READY</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-2">
+                        <i class="fas fa-microchip"></i>
+                    </div>
+                    <h3 class="feature-title">Edge AI Inference</h3>
+                    <p class="feature-desc">Manage local ML models on edge devices with intelligent deployment pipelines.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm dot-active"></span>
+                        <span>STATUS: ACTIVE</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-3">
+                        <i class="fas fa-key"></i>
+                    </div>
+                    <h3 class="feature-title">Crypto Key Vault</h3>
+                    <p class="feature-desc">Rotate and manage device security certificates with hardware-backed storage.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm"></span>
+                        <span>STATUS: SECURE</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-4">
+                        <i class="fas fa-chart-network"></i>
+                    </div>
+                    <h3 class="feature-title">Network Topology</h3>
+                    <p class="feature-desc">Visualize mesh network health with dynamic routing path visualization.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm dot-active"></span>
+                        <span>STATUS: SYNCED</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-5">
+                        <i class="fas fa-bell"></i>
+                    </div>
+                    <h3 class="feature-title">Alert Engine</h3>
+                    <p class="feature-desc">Multi-channel notification system with threshold-based trigger rules.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm dot-active"></span>
+                        <span>STATUS: ARMED</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+
+                <div class="feature-card">
+                    <div class="feature-icon feature-icon-6">
+                        <i class="fas fa-ticket-alt"></i>
+                    </div>
+                    <h3 class="feature-title">Ticket System</h3>
+                    <p class="feature-desc">Integrated support queue with SLA tracking and device incident linkage.</p>
+                    <div class="feature-status">
+                        <span class="status-dot-sm"></span>
+                        <span>STATUS: STANDBY</span>
+                        <i class="fas fa-arrow-right feature-arrow"></i>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section class="telemetry-section">
+            <div class="telemetry-container">
+                <div class="telemetry-header">
+                    <div class="telemetry-title-wrap">
+                        <i class="fas fa-broadcast-tower telemetry-icon"></i>
+                        <h3 class="telemetry-title">LIVE_TELEMETRY_FEED</h3>
+                    </div>
+                    <button class="filter-btn" onclick="toggleFilter()">
+                        <i class="fas fa-filter"></i>
+                    </button>
+                </div>
+
+                <div class="telemetry-table">
+                    <div class="table-header">
+                        <div class="table-cell">NODE_ID</div>
+                        <div class="table-cell">STATUS</div>
+                        <div class="table-cell">UPTIME</div>
+                        <div class="table-cell">TEMP(°C)</div>
+                        <div class="table-cell">SIGNAL(dBm)</div>
+                    </div>
+
+                    <div class="table-body" id="telemetry-body">
+                        <div class="table-row">
+                            <div class="table-cell cell-id">NX-EU-001</div>
+                            <div class="table-cell">
+                                <span class="status-badge status-online">
+                                    <span class="badge-dot"></span> ONLINE
+                                </span>
+                            </div>
+                            <div class="table-cell cell-mono">99.9%</div>
+                            <div class="table-cell cell-mono cell-temp">42.1</div>
+                            <div class="table-cell cell-mono">-65</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell cell-id">NX-EU-002</div>
+                            <div class="table-cell">
+                                <span class="status-badge status-online">
+                                    <span class="badge-dot"></span> ONLINE
+                                </span>
+                            </div>
+                            <div class="table-cell cell-mono">99.8%</div>
+                            <div class="table-cell cell-mono cell-temp-warn">44.3</div>
+                            <div class="table-cell cell-mono">-68</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell cell-id">NX-NA-014</div>
+                            <div class="table-cell">
+                                <span class="status-badge status-offline">
+                                    <span class="badge-dot"></span> OFFLINE
+                                </span>
+                            </div>
+                            <div class="table-cell cell-mono">--</div>
+                            <div class="table-cell cell-mono">--</div>
+                            <div class="table-cell cell-mono">--</div>
+                        </div>
+                        <div class="table-row">
+                            <div class="table-cell cell-id">NX-AS-099</div>
+                            <div class="table-cell">
+                                <span class="status-badge status-online">
+                                    <span class="badge-dot"></span> ONLINE
+                                </span>
+                            </div>
+                            <div class="table-cell cell-mono">99.9%</div>
+                            <div class="table-cell cell-mono cell-temp">51.2</div>
+                            <div class="table-cell cell-mono">-72</div>
+                        </div>
+                    </div>
+
+                    <div class="table-footer">
+                        <span class="fetch-indicator">
+                            <span class="fetch-dots"></span>
+                            FETCHING MORE RECORDS
+                            <span class="fetch-dots"></span>
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <footer class="footer">
+            <div class="footer-container">
+                <div class="footer-brand">
+                    <div class="footer-logo">
+                        <i class="fas fa-shield-halved"></i>
+                        <span>IOT_GUARD</span>
+                    </div>
+                    <p class="footer-tagline">Vigilant Infrastructure Intelligence</p>
+                </div>
+                <div class="footer-links">
+                    <a href="#" onclick="scrollToStats()">System Status</a>
+                    <a href="#" onclick="scrollToFeatures()">Capabilities</a>
+                    <a href="#" onclick="goToLogin()">Dashboard</a>
+                    <a href="#" onclick="goToSignUp()">Register</a>
+                </div>
+                <div class="footer-copyright">
+                    <span><i class="fas fa-lock"></i> ENCRYPTED AES-256</span>
+                    <span>v2.4 INFRASTRUCTURE</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <script src="/static/landing.js"></script>
+</body>
+
+</html>

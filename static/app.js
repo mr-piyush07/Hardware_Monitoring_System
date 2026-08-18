@@ -10,12 +10,34 @@ const getApiBase = () => {
 };
 
 const API_BASE = getApiBase();
+
+const ALL_PERMISSION_LABELS = {
+    'overview': 'Dashboard',
+    'dashboard': 'Overview',
+    'fleet': 'Live Fleet',
+    'details': 'Analytics',
+    'tickets': 'Tickets',
+    'logs': 'Logs',
+    'incidents': 'Incidents',
+    'integration': 'Integration',
+    'alerts': 'Alert Engine',
+    'firmware': 'Firmware',
+    'users': 'Users Mgmt'
+};
+
+const ROLE_DEFAULT_PERMS = {
+    'user': ['overview', 'dashboard', 'details', 'tickets', 'logs'],
+    'subadmin': ['overview', 'dashboard', 'fleet', 'details', 'tickets', 'logs', 'incidents', 'integration', 'alerts'],
+    'admin': ['overview', 'dashboard', 'fleet', 'details', 'tickets', 'logs', 'incidents', 'integration', 'alerts', 'firmware', 'users']
+};
+
 let currentToken = localStorage.getItem('iot_token');
 let currentRole = localStorage.getItem('iot_role');
 let isLoginMode = true;
 let activeHwid = null;
 let dashboardInterval = null;
 let charts = {};
+const USER_CACHE = {};
 
 // DOM Elements
 const authSection = document.getElementById('auth-section');
@@ -27,6 +49,15 @@ const integrationContainer = document.getElementById('integration-container');
 
 // Initialization
 document.addEventListener('DOMContentLoaded', () => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const authMode = urlParams.get('auth');
+
+    if (authMode === 'register') {
+        toggleAuthMode(false);
+    } else if (authMode === 'login') {
+        toggleAuthMode(true);
+    }
+
     if (currentToken) showDashboard();
     else showAuth();
     // Initialize firmware form & custom dark select UI
@@ -37,10 +68,11 @@ document.addEventListener('DOMContentLoaded', () => {
 // UI Logic
 function toggleAuthMode(login) {
     isLoginMode = login;
-    document.getElementById('login-tab-btn').classList.toggle('active', login);
-    document.getElementById('register-tab-btn').classList.toggle('active', !login);
-    document.getElementById('login-tab-btn').style.color = login ? '#fff' : 'var(--text-muted)';
-    document.getElementById('register-tab-btn').style.color = !login ? '#fff' : 'var(--text-muted)';
+    const loginBtn = document.getElementById('login-tab-btn');
+    const registerBtn = document.getElementById('register-tab-btn');
+
+    loginBtn.classList.toggle('active', login);
+    registerBtn.classList.toggle('active', !login);
 
     document.getElementById('full-name-group').classList.toggle('hidden', login);
     document.getElementById('role-group').classList.toggle('hidden', login);
@@ -49,19 +81,30 @@ function toggleAuthMode(login) {
 }
 window.toggleAuthMode = toggleAuthMode;
 
+function toLowerSafe(v, d = '') { try { return (v == null ? d : String(v)).toLowerCase(); } catch (e) { return d; } }
+
 function switchTab(tabId) {
     const rawRole = localStorage.getItem('iot_role') || 'user';
-    const role = rawRole.toLowerCase().trim();
+    const role = toLowerSafe(rawRole, 'user').trim();
 
     // Strict Abstraction: Prevent unauthorized tab access
     const protectedTabs = {
         'integration': ['admin', 'subadmin'],
         'alerts': ['admin', 'subadmin'],
-        'firmware': ['admin']
+        'firmware': ['admin'],
+        'users': ['admin'],
+        'fleet': ['admin', 'subadmin'],
+        'incidents': ['admin', 'subadmin']
     };
 
     if (protectedTabs[tabId] && !protectedTabs[tabId].includes(role)) {
         showNotification("Access Denied: Administrative privileges required", "error");
+        return;
+    }
+
+    // Fine-grained: Permission list check (overrides role defaults when perms set)
+    if (!hasTabPermission(tabId)) {
+        showNotification(`Access Denied: Your account does not have permission for "${(ALL_PERMISSION_LABELS[tabId] || tabId)}"`, "error");
         return;
     }
 
@@ -148,10 +191,15 @@ authForm.onsubmit = async (e) => {
             const data = await res.json();
             if (res.ok) {
                 currentToken = data.access_token;
-                currentRole = data.role;
+                const safeRole = toLowerSafe(data.role, 'user') || 'user';
+                currentRole = safeRole;
                 localStorage.setItem('iot_token', currentToken);
-                localStorage.setItem('iot_role', data.role);
-                localStorage.setItem('iot_user_name', data.full_name);
+                localStorage.setItem('iot_role', safeRole);
+                localStorage.setItem('iot_user_name', data.full_name || 'User');
+                try {
+                    const perms = Array.isArray(data.permissions) ? data.permissions : [];
+                    localStorage.setItem('iot_permissions', JSON.stringify(perms));
+                } catch (_) { localStorage.setItem('iot_permissions', '[]'); }
                 showDashboard();
             } else showNotification(data.detail || 'Login failed', 'error');
         } else {
@@ -186,15 +234,37 @@ function showDashboard() {
     switchTab('overview');
 }
 
+function getUserPermissions() {
+    try {
+        const raw = localStorage.getItem('iot_permissions');
+        if (!raw || raw === 'undefined' || raw === 'null') return [];
+        const parsed = JSON.parse(raw);
+        return Array.isArray(parsed) ? parsed : [];
+    } catch (e) { return []; }
+}
+
+function hasTabPermission(tabId) {
+    const role = toLowerSafe(localStorage.getItem('iot_role'), 'user').trim();
+    if (role === 'admin') return true;
+    const perms = getUserPermissions();
+    if (!perms.length) {
+        const fallback = ROLE_DEFAULT_PERMS[role] || ROLE_DEFAULT_PERMS['user'];
+        return fallback.includes(tabId);
+    }
+    return perms.includes(tabId);
+}
+
 function applyRolePermissions() {
     let rawRole = localStorage.getItem('iot_role');
     if (!rawRole || rawRole === 'undefined' || rawRole === 'null') {
         rawRole = 'user';
     }
-    const role = rawRole.toLowerCase().trim();
+    const role = toLowerSafe(rawRole, 'user').trim();
     const userName = localStorage.getItem('iot_user_name') || 'User';
+    const perms = getUserPermissions();
+    const effectivePerms = perms.length ? perms : (ROLE_DEFAULT_PERMS[role] || ROLE_DEFAULT_PERMS['user']);
 
-    console.log(`[ACL Check] User: ${userName}, Role: ${role}`);
+    console.log(`[ACL Check] User: ${userName}, Role: ${role}, Permissions: [${effectivePerms.join(', ')}]`);
 
     const nameEl = document.getElementById('user-display-name');
     const roleEl = document.getElementById('user-display-role');
@@ -202,19 +272,30 @@ function applyRolePermissions() {
     if (nameEl) nameEl.innerText = userName;
     if (roleEl) roleEl.innerText = role.toUpperCase();
 
-    // Strict UI Gating
+    // Role-based strict gating (CSS class markers)
     const adminOnlyEls = document.querySelectorAll('.admin-only');
-    console.log(`[ACL Check] Found ${adminOnlyEls.length} .admin-only elements`);
     adminOnlyEls.forEach(el => {
         if (role === 'admin') el.classList.remove('hidden');
         else el.classList.add('hidden');
     });
 
     const adminSubEls = document.querySelectorAll('.admin-or-subadmin');
-    console.log(`[ACL Check] Found ${adminSubEls.length} .admin-or-subadmin elements`);
     adminSubEls.forEach(el => {
         if (role === 'admin' || role === 'subadmin') el.classList.remove('hidden');
         else el.classList.add('hidden');
+    });
+
+    // Permission-based nav item visibility (override role gating if permission explicitly denied)
+    document.querySelectorAll('.nav-item').forEach(item => {
+        const clickAttr = item.getAttribute('onclick') || '';
+        const match = clickAttr.match(/switchTab\(['"]([^'"]+)['"]\)/);
+        if (match) {
+            const tabId = match[1];
+            const visible = hasTabPermission(tabId);
+            if (!visible) {
+                item.classList.add('hidden');
+            }
+        }
     });
 }
 
@@ -1343,7 +1424,7 @@ async function loadOverviewData() {
                         transition:border-color 0.2s;" onmouseenter="this.style.borderColor='var(--border-hover)'"
                         onmouseleave="this.style.borderColor='var(--border)'">
                         <div style="display:flex;align-items:center;gap:12px;">
-                            <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0;${statusText==='Reporting'?'animation:pulse 2s infinite;':''}"></div>
+                            <div style="width:8px;height:8px;border-radius:50%;background:${statusColor};flex-shrink:0;${statusText === 'Reporting' ? 'animation:pulse 2s infinite;' : ''}"></div>
                             <div>
                                 <div style="font-weight:600;font-size:0.85rem;">${d.name}</div>
                                 <div style="color:var(--text-muted);font-size:0.72rem;">${dt} · ${d.hardware_id}</div>
@@ -1628,37 +1709,227 @@ function switchDetailSubTab(name) {
 window.switchDetailSubTab = switchDetailSubTab;
 
 // ─────────────────────────────────────────────
-// Users (Admin)
+// Users (Admin / Sub-Admin)
 // ─────────────────────────────────────────────
+function setDefaultPermissionsByRole(role, checkboxClass) {
+    const defaults = ROLE_DEFAULT_PERMS[role] || ROLE_DEFAULT_PERMS['user'];
+    document.querySelectorAll(`.${checkboxClass}`).forEach(cb => {
+        cb.checked = defaults.includes(cb.value);
+    });
+}
+
+function collectPermissions(checkboxClass) {
+    const perms = [];
+    document.querySelectorAll(`.${checkboxClass}:checked`).forEach(cb => perms.push(cb.value));
+    return perms;
+}
+
+function showAddUserModal() {
+    document.getElementById('new-user-name').value = '';
+    document.getElementById('new-user-email').value = '';
+    document.getElementById('new-user-pass').value = '';
+    document.getElementById('new-user-pass-confirm').value = '';
+    document.getElementById('new-user-role').value = 'user';
+    setDefaultPermissionsByRole('user', 'perm-cb-new');
+    document.getElementById('add-user-modal').classList.remove('hidden');
+    setTimeout(setupCustomSelects, 50);
+}
+window.showAddUserModal = showAddUserModal;
+
+function showEditUserModal(userId) {
+    const user = USER_CACHE[userId];
+    if (!user) { showNotification('User data not found', 'error'); return; }
+    document.getElementById('edit-user-id').value = user.id;
+    document.getElementById('edit-user-name').value = user.full_name || '';
+    document.getElementById('edit-user-email').value = user.email;
+    document.getElementById('edit-user-role').value = user.role;
+    document.getElementById('edit-user-pass').value = '';
+    document.getElementById('edit-user-pass-confirm').value = '';
+    document.querySelectorAll('.perm-cb-edit').forEach(cb => {
+        cb.checked = (user.permissions || []).includes(cb.value);
+    });
+    document.getElementById('edit-user-modal').classList.remove('hidden');
+    setTimeout(setupCustomSelects, 50);
+}
+window.showEditUserModal = showEditUserModal;
+
+async function saveInlinePermissions(userId, checkboxClass) {
+    const perms = collectPermissions(checkboxClass);
+    try {
+        const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+            body: JSON.stringify({ permissions: perms })
+        });
+        if (res.ok) {
+            showNotification('Permissions saved!', 'success');
+            loadUsers();
+        } else {
+            const e = await res.json();
+            showNotification(e.detail || 'Failed to save permissions', 'error');
+        }
+    } catch (e) {
+        showNotification('Network error — permissions not saved', 'error');
+    }
+}
+window.saveInlinePermissions = saveInlinePermissions;
+
 async function loadUsers() {
     try {
         const res = await fetch(`${API_BASE}/auth/users`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        if (!res.ok) {
+            const e = await res.json();
+            throw new Error(e.detail || 'Unauthorized');
+        }
         const users = await res.json();
         const container = document.getElementById('users-list-container');
+        if (!container) return;
         container.innerHTML = '';
+
+        Object.keys(USER_CACHE).forEach(k => delete USER_CACHE[k]);
+
+        if (!users || !users.length) {
+            container.innerHTML = '<div class="empty-msg">No user accounts registered yet. Click "Add Users / Sub Users" above to invite your team.</div>';
+            return;
+        }
+
         users.forEach(u => {
-            const row = document.createElement('div');
-            row.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:15px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:14px;';
+            USER_CACHE[u.id] = u;
+
+            const card = document.createElement('div');
+            card.className = 'glass-card';
+            card.style.cssText = 'padding:0;background:rgba(255,255,255,0.02);border:1px solid var(--border);border-radius:16px;overflow:hidden;margin-bottom:15px;';
+
             const roleColor = u.role === 'admin' ? 'var(--accent)' : (u.role === 'subadmin' ? 'var(--warning)' : 'var(--success)');
-            row.innerHTML = `
-                <div>
-                    <p style="font-weight:600;">${u.full_name || 'N/A'}</p>
-                    <p style="font-size:0.8rem;color:var(--text-muted);">${u.email}</p>
+            const roleBg = u.role === 'admin' ? 'rgba(167,139,250,0.1)' : (u.role === 'subadmin' ? 'rgba(245,158,11,0.1)' : 'rgba(16,185,129,0.1)');
+            const userPerms = u.permissions || [];
+            const inlinePermId = `inline-perms-${u.id}`;
+            const inlineCbClass = `inline-perm-cb-${u.id}`;
+
+            const allPermKeys = Object.keys(ALL_PERMISSION_LABELS);
+            const permBadges = allPermKeys.map(key => {
+                const hasIt = userPerms.includes(key);
+                const safeLabel = ALL_PERMISSION_LABELS[key].replace(/'/g, '&#39;');
+                return `<span style="display:inline-flex;align-items:center;gap:5px;padding:4px 10px;border-radius:18px;font-size:0.7rem;font-weight:600;background:${hasIt ? 'rgba(6,182,212,0.12)' : 'rgba(255,255,255,0.03)'};color:${hasIt ? '#06b6d4' : 'var(--text-muted)'};border:1px solid ${hasIt ? 'rgba(6,182,212,0.3)' : 'var(--border)'};">
+                    <i class="fas fa-${hasIt ? 'check' : 'minus'}" style="font-size:0.6rem;"></i> ${safeLabel}
+                </span>`;
+            }).join('');
+
+            const safeName = (u.full_name || 'Unnamed User').replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
+            const safeEmail = (u.email || '').replace(/[<>&'"]/g, c => ({ '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;' }[c]));
+            const safeRole = (u.role || 'user').toUpperCase().replace(/'/g, '');
+
+            card.innerHTML = `
+                <div style="padding:20px;">
+                    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap;">
+                        <div style="display:flex;align-items:center;gap:16px;">
+                            <div style="width:48px;height:48px;border-radius:50%;background:linear-gradient(135deg, var(--accent-soft), rgba(6,182,212,0.15));display:flex;align-items:center;justify-content:center;border:2px solid var(--accent-glow);">
+                                <i class="fas fa-user" style="color:var(--accent);font-size:1.1rem;"></i>
+                            </div>
+                            <div>
+                                <p style="font-weight:700;font-size:1rem;margin:0 0 4px 0;">${safeName}</p>
+                                <p style="font-size:0.82rem;color:var(--text-muted);margin:0;">${safeEmail}</p>
+                            </div>
+                        </div>
+                        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+                            <span style="padding:5px 14px;border-radius:20px;font-size:0.75rem;font-weight:700;color:${roleColor};background:${roleBg};border:1px solid ${roleColor}33;">
+                                ${safeRole}
+                            </span>
+                            <span style="padding:5px 14px;border-radius:20px;font-size:0.75rem;font-weight:600;color:${u.is_active ? 'var(--success)' : 'var(--danger)'};background:${u.is_active ? 'rgba(16,185,129,0.1)' : 'rgba(239,68,68,0.1)'};border:1px solid ${u.is_active ? 'rgba(16,185,129,0.3)' : 'rgba(239,68,68,0.3)'};">
+                                <i class="fas fa-circle" style="font-size:0.5rem;margin-right:5px;"></i>${u.is_active ? 'ACTIVE' : 'DISABLED'}
+                            </span>
+                            <button type="button" class="accent-btn" style="padding:7px 14px;font-size:0.8rem;" data-user-edit="${u.id}">
+                                <i class="fas fa-edit"></i> Edit
+                            </button>
+                            <button type="button" class="accent-btn" style="padding:7px 14px;font-size:0.8rem;color:var(--danger);border-color:rgba(239,68,68,0.3);" data-user-delete="${u.id}">
+                                <i class="fas fa-trash"></i> Delete
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="margin-top:18px;padding:15px 18px;background:rgba(0,0,0,0.22);border-radius:12px;border:1px solid rgba(255,255,255,0.04);">
+                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+                            <p style="font-size:0.75rem;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.5px;margin:0;">
+                                <i class="fas fa-shield-alt" style="margin-right:6px;"></i>Service Access Permissions (${userPerms.length}/${allPermKeys.length})
+                            </p>
+                            <button type="button" class="accent-btn" style="padding:3px 10px;font-size:0.7rem;" data-toggle-perms="${inlinePermId}">
+                                <i class="fas fa-sliders-h"></i> Toggle Editor
+                            </button>
+                        </div>
+                        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">
+                            ${permBadges}
+                        </div>
+                        <div id="${inlinePermId}" class="hidden" style="margin-top:5px;padding-top:12px;border-top:1px solid rgba(255,255,255,0.05);">
+                            <p style="font-size:0.7rem;color:var(--text-muted);margin-bottom:10px;">Select which tabs/services this user can access:</p>
+                            <div class="permissions-grid" style="margin-top:0;padding:12px;">
+                                ${allPermKeys.map(key => `
+                                    <label class="perm-check">
+                                        <input type="checkbox" class="${inlineCbClass}" value="${key}" ${userPerms.includes(key) ? 'checked' : ''}>
+                                        <span>${ALL_PERMISSION_LABELS[key].replace(/'/g, '&#39;')}</span>
+                                    </label>
+                                `).join('')}
+                            </div>
+                            <button type="button" class="primary-btn perm-save-btn" style="display:flex;align-items:center;gap:8px;" data-save-perms-id="${u.id}" data-save-perms-class="${inlineCbClass}">
+                                <i class="fas fa-save"></i> Save Permissions
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div style="display:flex;align-items:center;gap:15px;">
-                    <span style="background:rgba(0,0,0,0.3);padding:4px 12px;border-radius:8px;font-size:0.8rem;font-weight:700;color:${roleColor};">${u.role.toUpperCase()}</span>
-                    <button class="accent-btn" style="padding:6px 14px;font-size:0.8rem;color:var(--danger);border-color:rgba(239,68,68,0.3);" onclick="deleteUser(${u.id})"><i class="fas fa-trash"></i></button>
-                </div>`;
-            container.appendChild(row);
+            `;
+            container.appendChild(card);
         });
-    } catch (e) { showNotification('Failed to load users', 'error'); }
+
+        container.querySelectorAll('[data-user-edit]').forEach(btn => {
+            btn.addEventListener('click', () => showEditUserModal(parseInt(btn.getAttribute('data-user-edit'))));
+        });
+        container.querySelectorAll('[data-user-delete]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const uid = parseInt(btn.getAttribute('data-user-delete'));
+                const u = USER_CACHE[uid];
+                deleteUser(uid, u ? u.email : '');
+            });
+        });
+        container.querySelectorAll('[data-toggle-perms]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const id = btn.getAttribute('data-toggle-perms');
+                const el = document.getElementById(id);
+                if (el) el.classList.toggle('hidden');
+            });
+        });
+        container.querySelectorAll('[data-save-perms-id]').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const uid = parseInt(btn.getAttribute('data-save-perms-id'));
+                const cls = btn.getAttribute('data-save-perms-class');
+                saveInlinePermissions(uid, cls);
+            });
+        });
+    } catch (e) {
+        showNotification('Failed to load users', 'error');
+        console.error('loadUsers error:', e);
+    }
 }
 
-async function deleteUser(userId) {
-    if (!confirm('Permanently remove this user account?')) return;
-    const res = await fetch(`${API_BASE}/auth/users/${userId}`, { method: 'DELETE', headers: { 'Authorization': `Bearer ${currentToken}` } });
-    if (res.ok) { showNotification('User removed', 'success'); loadUsers(); }
-    else { const e = await res.json(); showNotification(e.detail || 'Delete failed', 'error'); }
+async function deleteUser(userId, userEmail) {
+    const emailLine = userEmail ? `\n\nEmail: ${userEmail}` : '';
+    if (!confirm(`⚠️ Permanently remove user account?${emailLine}\n\nThis action cannot be undone.`)) return;
+    try {
+        const res = await fetch(`${API_BASE}/auth/users/${userId}/delete`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+            showNotification('User removed successfully', 'success');
+            if (USER_CACHE[userId]) delete USER_CACHE[userId];
+            loadUsers();
+        }
+        else {
+            let msg = 'Delete failed';
+            try { const e = await res.json(); if (e && e.detail) msg = e.detail; } catch (_) { }
+            showNotification(msg, 'error');
+        }
+    } catch (e) {
+        showNotification('Network error — could not delete user', 'error');
+    }
 }
 window.deleteUser = deleteUser;
 
@@ -1846,6 +2117,99 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('sensor-key-group').style.display = isHeartbeat ? 'none' : '';
         document.getElementById('operator-group').style.display = isHeartbeat ? 'none' : '';
         document.getElementById('threshold-label').innerText = isHeartbeat ? 'Timeout (minutes)' : 'Threshold Value';
+    });
+
+    // ── Add User Form Submit ──
+    document.getElementById('add-user-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const full_name = document.getElementById('new-user-name').value.trim();
+        const email = document.getElementById('new-user-email').value.trim();
+        const role = document.getElementById('new-user-role').value;
+        const password = document.getElementById('new-user-pass').value;
+        const password2 = document.getElementById('new-user-pass-confirm').value;
+        const permissions = collectPermissions('perm-cb-new');
+
+        if (password !== password2) {
+            showNotification('Passwords do not match', 'error');
+            return;
+        }
+        if (password.length < 6) {
+            showNotification('Password must be at least 6 characters', 'error');
+            return;
+        }
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/users/create`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify({ email, password, full_name, role, permissions })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showNotification(`User "${email}" created successfully!`, 'success');
+                hideModal('add-user-modal');
+                loadUsers();
+            } else {
+                showNotification(data.detail || 'User creation failed', 'error');
+            }
+        } catch (err) {
+            showNotification('Backend connection failed', 'error');
+        }
+    });
+
+    // ── Add User: Role Change → Auto-set default permissions ──
+    document.getElementById('new-user-role')?.addEventListener('change', (e) => {
+        if (confirm('Reset permissions to defaults for this role?\n(Choose OK to apply role-based presets)')) {
+            setDefaultPermissionsByRole(e.target.value, 'perm-cb-new');
+        }
+    });
+
+    // ── Edit User Form Submit ──
+    document.getElementById('edit-user-form')?.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const userId = parseInt(document.getElementById('edit-user-id').value);
+        const full_name = document.getElementById('edit-user-name').value.trim();
+        const role = document.getElementById('edit-user-role').value;
+        const password = document.getElementById('edit-user-pass').value;
+        const password2 = document.getElementById('edit-user-pass-confirm').value;
+        const permissions = collectPermissions('perm-cb-edit');
+
+        if (password && password !== password2) {
+            showNotification('Passwords do not match', 'error');
+            return;
+        }
+        if (password && password.length < 6) {
+            showNotification('Password must be at least 6 characters', 'error');
+            return;
+        }
+
+        const payload = { full_name, role, permissions };
+        if (password) payload.password = password;
+
+        try {
+            const res = await fetch(`${API_BASE}/auth/users/${userId}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${currentToken}` },
+                body: JSON.stringify(payload)
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showNotification('User updated successfully!', 'success');
+                hideModal('edit-user-modal');
+                loadUsers();
+            } else {
+                showNotification(data.detail || 'Update failed', 'error');
+            }
+        } catch (err) {
+            showNotification('Backend connection failed', 'error');
+        }
+    });
+
+    // ── Edit User: Role Change → Auto-set default permissions ──
+    document.getElementById('edit-user-role')?.addEventListener('change', (e) => {
+        if (confirm('Reset permissions to defaults for this role?\n(Choose OK to apply role-based presets)')) {
+            setDefaultPermissionsByRole(e.target.value, 'perm-cb-edit');
+        }
     });
 });
 

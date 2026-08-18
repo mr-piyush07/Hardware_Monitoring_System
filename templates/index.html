@@ -4,8 +4,8 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IoT Guard | Professional Infrastructure Intelligence</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <title>IOT_GUARD | Global Telemetry Hub</title>
+    <link rel="stylesheet" href="/static/style.css?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
@@ -14,75 +14,88 @@
 
     <!-- Auth Section -->
     <section id="auth-section">
-        <div class="auth-box">
-            <div class="brand-logo">
-                <i class="fas fa-shield-halved"></i>
-                <h1>IoT Guard</h1>
-                <p>VIGILANT INFRASTRUCTURE</p>
+        <div class="auth-container">
+            <!-- Left Side: Image + Status Badges -->
+            <div class="auth-image-panel">
+                <div class="auth-image-overlay"></div>
+                <img src="/static/images/login-bg.jpg" alt="Security Panel" class="auth-bg-image">
+                
+                <!-- Top-Left Status Badge -->
+                <div class="sys-status-card">
+                    <span class="sys-status-title">SYS.STATUS // ONLINE</span>
+                    <span class="sys-status-line">NODES: 14,204</span>
+                    <span class="sys-status-line">LATENCY: 12ms</span>
+                </div>
+                
+                <!-- Bottom-Right Data Stream Badge -->
+                <div class="data-stream-card">
+                    <span class="ds-title">DATA.STREAM // ACTIVE</span>
+                    <span class="ds-line">ENCRYPTION: AES-256-GCM</span>
+                    <span class="ds-line">HANDSHAKE: SECURE</span>
+                </div>
             </div>
 
-            <div id="auth-tabs" style="display: flex; margin-bottom: 30px; border-bottom: 2px solid var(--border);">
-                <button id="login-tab-btn" class="active"
-                    style="flex: 1; background: none; border: none; color: #fff; padding: 10px; cursor: pointer; font-weight: 600;"
-                    onclick="toggleAuthMode(true)">Login</button>
-                <button id="register-tab-btn"
-                    style="flex: 1; background: none; border: none; color: var(--text-muted); padding: 10px; cursor: pointer; font-weight: 600;"
-                    onclick="toggleAuthMode(false)">Register</button>
-            </div>
+            <!-- Right Side: Auth Form -->
+            <div class="auth-form-panel">
+                <div class="auth-box">
+                    <div class="brand-logo">
+                        <div class="brand-icon-box">
+                            <i class="fas fa-shield-halved"></i>
+                        </div>
+                        <h1>IOT<span style="color:#a78bfa;">_GUARD</span></h1>
+                        <p>VIGILANT INFRASTRUCTURE</p>
+                    </div>
 
-            <form id="auth-form">
-                <div id="full-name-group" class="input-group hidden">
-                    <label>Full Name</label>
-                    <input type="text" id="full_name" placeholder="John Doe">
-                </div>
-                <div id="role-group" class="input-group hidden">
-                    <label>System Role</label>
-                    <select id="role_select">
-                        <option value="user">User</option>
-                        <option value="subadmin">Sub Admin</option>
-                        <option value="admin">Admin</option>
-                    </select>
-                </div>
-                <div class="input-group">
-                    <label>Organization Email</label>
-                    <input type="email" id="email" required placeholder="admin@infrastructure.io">
-                </div>
-                <div class="input-group">
-                    <label>Secure Password</label>
-                    <input type="password" id="password" required placeholder="••••••••••••">
-                </div>
-                <div id="confirm-pass-group" class="input-group hidden">
-                    <label>Confirm Password</label>
-                    <input type="password" id="confirm_password" placeholder="••••••••••••">
-                </div>
+                    <div id="auth-tabs" class="auth-tabs">
+                        <button id="login-tab-btn" class="auth-tab active"
+                            onclick="toggleAuthMode(true)">Login</button>
+                        <button id="register-tab-btn" class="auth-tab"
+                            onclick="toggleAuthMode(false)">Register</button>
+                    </div>
 
-                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 25px;">
-                    <input type="checkbox" id="remember_node" style="width: 18px; height: 18px;">
-                    <label for="remember_node" style="font-size: 0.85rem; color: var(--text-muted); margin: 0;">Remember
-                        Node</label>
+                    <form id="auth-form">
+                        <div id="full-name-group" class="input-group hidden">
+                            <label>Full Name</label>
+                            <input type="text" id="full_name" placeholder="John Doe">
+                        </div>
+                        <div id="role-group" class="input-group hidden">
+                            <label>System Role</label>
+                            <select id="role_select">
+                                <option value="user">User</option>
+                                <option value="subadmin">Sub Admin</option>
+                                <option value="admin">Admin</option>
+                            </select>
+                        </div>
+                        <div class="input-group">
+                            <label>ORGANIZATION EMAIL</label>
+                            <input type="email" id="email" required placeholder="kshitiz@gmail.com">
+                        </div>
+                        <div class="input-group">
+                            <div class="input-label-row">
+                                <label>SECURE PASSWORD</label>
+                                <span class="reset-auth-link">Reset Auth</span>
+                            </div>
+                            <input type="password" id="password" required placeholder="••••••••">
+                        </div>
+                        <div id="confirm-pass-group" class="input-group hidden">
+                            <label>CONFIRM PASSWORD</label>
+                            <input type="password" id="confirm_password" placeholder="••••••••">
+                        </div>
+
+                        <div class="remember-row">
+                            <input type="checkbox" id="remember_node">
+                            <label for="remember_node">Remember Node</label>
+                        </div>
+
+                        <button type="submit" id="auth-btn" class="auth-submit-btn">
+                            <span id="auth-btn-text">Log In</span>
+                        </button>
+                    </form>
+
+                    <div class="auth-footer-info">
+                        <i class="fas fa-lock"></i> ENCRYPTED AES-256 | V2.4 INFRASTRUCTURE
+                    </div>
                 </div>
-
-                <button type="submit" id="auth-btn" class="primary-btn"
-                    style="width: 100%; justify-content: center; height: 55px; font-size: 1.1rem;">
-                    <span id="auth-btn-text">Log In</span>
-                </button>
-            </form>
-
-            <div style="margin-top: 30px; text-align: center; color: var(--text-muted); font-size: 0.8rem;">
-                <p><i class="fas fa-lock" style="margin-right: 5px;"></i> ENCRYPTED AES-256 | V2.4 INFRASTRUCTURE</p>
-            </div>
-        </div>
-
-        <!-- Decoration from images -->
-        <div id="auth-decoration"
-            style="position: fixed; bottom: 40px; right: 40px; background: rgba(15,15,18,0.8); border: 1px solid var(--border); border-radius: 20px; padding: 20px; width: 300px; backdrop-filter: blur(10px); display: flex; gap: 15px; align-items: flex-start;">
-            <div style="background: var(--accent-glow); padding: 10px; border-radius: 12px; color: var(--accent);">
-                <i class="fas fa-chart-line"></i>
-            </div>
-            <div>
-                <h4 style="font-size: 0.9rem; margin-bottom: 5px;">Operational Insight</h4>
-                <p style="font-size: 0.75rem; color: var(--text-muted);">Connecting to the global sentinel network.
-                    Ensure MFA device is synchronized.</p>
             </div>
         </div>
     </section>
@@ -92,7 +105,7 @@
         <!-- Sidebar Navigation -->
         <aside class="sidebar">
             <div class="brand" style="margin-bottom: 30px;">
-                <h2>IoT Guard</h2>
+                <h2>IOT<span style="color:var(--accent)">_GUARD</span></h2>
                 <p>Vigilant Infrastructure</p>
             </div>
 
@@ -648,8 +661,8 @@
                         <div style="display:flex;flex-direction:column;gap:16px;">
                             <div class="matrix-card" style="padding:22px;">
                                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:18px;">
-                                    <div style="width:32px;height:32px;border-radius:8px;background:rgba(139,92,246,0.2);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:0.85rem;"><i class="fas fa-microchip"></i></div>
-                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Device Setup</h3>
+                                    <div style="width:32px;height:32px;border-radius:8px;background:var(--accent-soft);display:flex;align-items:center;justify-content:center;color:var(--accent);font-size:0.85rem;"><i class="fas fa-microchip"></i></div>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display);font-weight:600;">Device Setup</h3>
                                 </div>
 
                                 <div class="input-group">
@@ -698,7 +711,7 @@
 
                                 <div id="lora-config-group" style="display:none;">
                                     <div style="height:1px;background:var(--border);margin:4px 0 14px;"></div>
-                                    <p style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;"><i class="fas fa-broadcast-tower"></i> LoRa Parameters</p>
+                                    <p style="font-size:0.7rem;color:var(--accent);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:12px;font-family:var(--font-display);font-weight:600;"><i class="fas fa-broadcast-tower"></i> LoRa Parameters</p>
                                     <div class="input-group">
                                         <label>Frequency (Hz)</label>
                                         <input type="number" id="gen-lora-freq" value="915000000">
@@ -735,9 +748,9 @@
                                 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                                     <div style="display:flex;align-items:center;gap:10px;">
                                         <div style="width:32px;height:32px;border-radius:8px;background:rgba(6,182,212,0.15);display:flex;align-items:center;justify-content:center;color:#06b6d4;font-size:0.85rem;"><i class="fas fa-plug"></i></div>
-                                        <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Sensor Library</h3>
+                                        <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display);font-weight:600;">Sensor Library</h3>
                                     </div>
-                                    <span id="selected-sensor-count" style="background:rgba(139,92,246,0.15);color:var(--accent);border:1px solid rgba(139,92,246,0.3);border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;">0 selected</span>
+                                    <span id="selected-sensor-count" style="background:var(--accent-soft);color:var(--accent);border:1px solid rgba(0,229,255,0.3);border-radius:20px;padding:2px 10px;font-size:0.75rem;font-weight:700;font-family:var(--font-display);">0 selected</span>
                                 </div>
                                 <p style="color:var(--text-muted);font-size:0.78rem;margin-bottom:14px;">Click a sensor to add it to your build. Pins are auto-suggested for ESP32.</p>
 
@@ -750,7 +763,7 @@
                             <div class="matrix-card" style="padding:22px;" id="pin-config-card">
                                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;">
                                     <div style="width:32px;height:32px;border-radius:8px;background:rgba(16,185,129,0.15);display:flex;align-items:center;justify-content:center;color:var(--success);font-size:0.85rem;"><i class="fas fa-code-branch"></i></div>
-                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Pin Configuration</h3>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display);font-weight:600;">Pin Configuration</h3>
                                 </div>
                                 <div id="pin-config-list" style="display:flex;flex-direction:column;gap:10px;">
                                     <p style="color:var(--text-muted);font-size:0.82rem;text-align:center;padding:20px 0;"><i class="fas fa-arrow-up" style="display:block;margin-bottom:8px;font-size:1.2rem;opacity:0.4;"></i>Select sensors above to configure their pins</p>
@@ -763,7 +776,7 @@
                             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
                                 <div style="display:flex;align-items:center;gap:10px;">
                                     <div style="width:32px;height:32px;border-radius:8px;background:rgba(245,158,11,0.15);display:flex;align-items:center;justify-content:center;color:var(--warning);font-size:0.85rem;"><i class="fas fa-file-code"></i></div>
-                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;">Source Preview</h3>
+                                    <h3 style="font-size:0.9rem;text-transform:uppercase;letter-spacing:0.5px;font-family:var(--font-display);font-weight:600;">Source Preview</h3>
                                 </div>
                                 <div style="display:flex;gap:8px;">
                                     <button id="copy-code-btn" class="accent-btn" style="padding:5px 14px;font-size:0.78rem;">
@@ -827,13 +840,18 @@
                     </div>
                 </div>
 
-                <!-- Users Tab (Admin) -->
+                <!-- Users Tab (Admin / SubAdmin) -->
                 <div id="users-tab" class="hidden">
                     <div class="viewport-header">
-                        <h2>User Account Administration</h2>
+                        <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                            <h2>User Account Administration</h2>
+                            <button id="add-user-btn" class="primary-btn" onclick="showAddUserModal()">
+                                <i class="fas fa-user-plus"></i> Add Users / Sub Users
+                            </button>
+                        </div>
                     </div>
                     <div class="glass-card">
-                        <div id="users-list-container" style="display: flex; flex-direction: column; gap: 15px;">
+                        <div id="users-list-container" style="display: flex; flex-direction: column; gap: 20px;">
                             <div class="empty-msg">Scanning credentials registry...</div>
                         </div>
                     </div>
@@ -938,7 +956,7 @@
                     </div>
                     <div class="input-group">
                         <label>Sender Name (Alias)</label>
-                        <input type="text" id="smtp-from-name" required placeholder="IoT Guard Monitor">
+                        <input type="text" id="smtp-from-name" required placeholder="NEXUS_CORE Monitor">
                     </div>
                 </div>
 
@@ -1008,6 +1026,139 @@
                         onclick="hideModal('smtp-modal')">Cancel</button>
                     <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">Deploy & Save
                         Configuration</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Add User Modal -->
+    <div id="add-user-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 620px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>Create New User / Sub Admin</h3>
+                <button class="accent-btn" onclick="hideModal('add-user-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="add-user-form">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="new-user-name" required placeholder="John Doe">
+                    </div>
+                    <div class="input-group">
+                        <label>System Role</label>
+                        <select id="new-user-role">
+                            <option value="user">User</option>
+                            <option value="subadmin">Sub Admin</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Organization Email</label>
+                    <input type="email" id="new-user-email" required placeholder="kshitiz@nexus.io">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Secure Password</label>
+                        <input type="password" id="new-user-pass" required placeholder="••••••••">
+                    </div>
+                    <div class="input-group">
+                        <label>Confirm Password</label>
+                        <input type="password" id="new-user-pass-confirm" required placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label style="margin-bottom: 14px; display:block;">Permission Matrix — Grant Tab Access</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;" id="new-user-permissions">
+                        <label class="perm-check"><input type="checkbox" value="overview" class="perm-cb-new"> Overview</label>
+                        <label class="perm-check"><input type="checkbox" value="dashboard" class="perm-cb-new"> Dashboard</label>
+                        <label class="perm-check"><input type="checkbox" value="fleet" class="perm-cb-new"> Live Fleet</label>
+                        <label class="perm-check"><input type="checkbox" value="details" class="perm-cb-new"> Analytics</label>
+                        <label class="perm-check"><input type="checkbox" value="tickets" class="perm-cb-new"> Tickets</label>
+                        <label class="perm-check"><input type="checkbox" value="logs" class="perm-cb-new"> Logs</label>
+                        <label class="perm-check"><input type="checkbox" value="incidents" class="perm-cb-new"> Incidents</label>
+                        <label class="perm-check"><input type="checkbox" value="integration" class="perm-cb-new"> Integration</label>
+                        <label class="perm-check"><input type="checkbox" value="alerts" class="perm-cb-new"> Alert Engine</label>
+                        <label class="perm-check"><input type="checkbox" value="firmware" class="perm-cb-new"> Firmware</label>
+                        <label class="perm-check"><input type="checkbox" value="users" class="perm-cb-new"> Users Mgmt</label>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('add-user-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">
+                        <i class="fas fa-user-plus"></i> Create Account
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit User Modal -->
+    <div id="edit-user-modal" class="modal hidden">
+        <div class="modal-content" style="max-width: 620px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
+                <h3>Edit User Account</h3>
+                <button class="accent-btn" onclick="hideModal('edit-user-modal')"
+                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+            </div>
+            <form id="edit-user-form">
+                <input type="hidden" id="edit-user-id">
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>Full Name</label>
+                        <input type="text" id="edit-user-name" required placeholder="John Doe">
+                    </div>
+                    <div class="input-group">
+                        <label>System Role</label>
+                        <select id="edit-user-role">
+                            <option value="user">User</option>
+                            <option value="subadmin">Sub Admin</option>
+                            <option value="admin">Admin</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label>Organization Email</label>
+                    <input type="email" id="edit-user-email" readonly style="opacity: 0.6;">
+                </div>
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                    <div class="input-group">
+                        <label>New Password (leave blank to keep)</label>
+                        <input type="password" id="edit-user-pass" placeholder="••••••••">
+                    </div>
+                    <div class="input-group">
+                        <label>Confirm New Password</label>
+                        <input type="password" id="edit-user-pass-confirm" placeholder="••••••••">
+                    </div>
+                </div>
+
+                <div class="input-group">
+                    <label style="margin-bottom: 14px; display:block;">Permission Matrix — Grant Tab Access</label>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;" id="edit-user-permissions">
+                        <label class="perm-check"><input type="checkbox" value="overview" class="perm-cb-edit"> Overview</label>
+                        <label class="perm-check"><input type="checkbox" value="dashboard" class="perm-cb-edit"> Dashboard</label>
+                        <label class="perm-check"><input type="checkbox" value="fleet" class="perm-cb-edit"> Live Fleet</label>
+                        <label class="perm-check"><input type="checkbox" value="details" class="perm-cb-edit"> Analytics</label>
+                        <label class="perm-check"><input type="checkbox" value="tickets" class="perm-cb-edit"> Tickets</label>
+                        <label class="perm-check"><input type="checkbox" value="logs" class="perm-cb-edit"> Logs</label>
+                        <label class="perm-check"><input type="checkbox" value="incidents" class="perm-cb-edit"> Incidents</label>
+                        <label class="perm-check"><input type="checkbox" value="integration" class="perm-cb-edit"> Integration</label>
+                        <label class="perm-check"><input type="checkbox" value="alerts" class="perm-cb-edit"> Alert Engine</label>
+                        <label class="perm-check"><input type="checkbox" value="firmware" class="perm-cb-edit"> Firmware</label>
+                        <label class="perm-check"><input type="checkbox" value="users" class="perm-cb-edit"> Users Mgmt</label>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 15px; margin-top: 25px;">
+                    <button type="button" class="accent-btn" style="flex: 1;"
+                        onclick="hideModal('edit-user-modal')">Cancel</button>
+                    <button type="submit" class="primary-btn" style="flex: 2; justify-content: center;">
+                        <i class="fas fa-save"></i> Save Changes
+                    </button>
                 </div>
             </form>
         </div>

@@ -4,11 +4,15 @@ from django.shortcuts import render
 from django.conf import settings
 from django.conf.urls.static import static
 
+def landing_page(request):
+    return render(request, "landing.html")
+
 def index_dashboard(request):
     return render(request, "index.html")
 
 urlpatterns = [
-    path("", index_dashboard, name="dashboard"),
+    path("", landing_page, name="landing"),
+    path("dashboard/", index_dashboard, name="dashboard"),
     path("admin/", admin.site.urls),
     path("auth/", include("auth_app.urls")),
     path("devices/", include("devices_app.urls")),
