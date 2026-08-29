@@ -1,0 +1,26 @@
+# Render Blueprint Spec (1-Click Deployment)
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: iot-monitoring-service
+    env: python
+    buildCommand: ./build.sh
+    startCommand: gunicorn iot_monitoring.wsgi:application
+    envVars:
+      - key: DEBUG
+        value: "False"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_SECRET_KEY
+        generateValue: true
+      - key: DATABASE_URL
+        fromDatabase:
+          name: iot-dashboard-gen7-db
+          property: connectionString
+
+databases:
+  - name: iot-dashboard-gen7-db
+    databaseName: iot_dashboard_gen7
+    user: iot_dashboard_gen7_user
+    plan: free

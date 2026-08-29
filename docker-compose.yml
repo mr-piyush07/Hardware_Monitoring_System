@@ -1,47 +1,54 @@
+version: '3.8'
+
 services:
-  redis:
-    image: redis:7-alpine
-    ports:
-      - "6379:6379"
-
-  db:
-    image: postgres:15
-    volumes:
-      - postgres_data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: ${POSTGRES_USER:-postgres}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
-      POSTGRES_DB: ${POSTGRES_DB:-iot_monitoring}
-    ports:
-      - "5432:5432"
-
-  emqx:
-    image: emqx:5.1.0
-    ports:
-      - "1883:1883"
-      - "8083:8083"
-      - "8883:8883"
-      - "8084:8084"
-      - "18083:18083"
-    environment:
-      EMQX_NAME: "iot_broker"
-      EMQX_HOST: "127.0.0.1"
-
-  app:
+  web:
     build: .
-    volumes:
-      - .:/app
+    command: gunicorn iot_monitoring.wsgi:application --bind 0.0.0.0:8000 --workers 4
     ports:
-      - "8001:8001"
+      - "8000:8000"
     environment:
-      DATABASE_URL: "postgresql://postgres:postgres@db:5432/iot_monitoring"
-      MQTT_BROKER_HOST: "emqx"
-      REDIS_URL: "redis://redis:6379/0"
+      - DEBUG=False
+      - DB_ENGINE=postgresql
+      - POSTGRES_DB=iot_monitoring_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_secure_pass
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - MQTT_BROKER_HOST=mqtt
+      - MQTT_BROKER_PORT=1883
     depends_on:
       - db
-      - emqx
-      - redis
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+      - mqtt
+
+  mqtt_worker:
+    build: .
+    command: python background_worker.py
+    environment:
+      - DB_ENGINE=postgresql
+      - POSTGRES_DB=iot_monitoring_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_secure_pass
+      - POSTGRES_HOST=db
+      - POSTGRES_PORT=5432
+      - MQTT_BROKER_HOST=mqtt
+      - MQTT_BROKER_PORT=1883
+    depends_on:
+      - db
+      - mqtt
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      - POSTGRES_DB=iot_monitoring_db
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres_secure_pass
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  mqtt:
+    image: eclipse-mosquitto:2
+    ports:
+      - "1883:1883"
 
 volumes:
   postgres_data:

@@ -1,12 +1,16 @@
 // Automatically detect the correct API backend host
 const getApiBase = () => {
+    // 1. If explicit environment variable PUBLIC_API_URL is configured, use it!
+    if (window.PUBLIC_API_URL && typeof window.PUBLIC_API_URL === 'string' && window.PUBLIC_API_URL.trim() !== '') {
+        return window.PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    }
     const hostname = window.location.hostname;
-    // If running locally or as a local file, default to localhost:8000
+    // 2. If running locally, default to http://localhost:8000
     if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1') {
         return 'http://localhost:8000';
     }
-    // If hosting on a specific LAN/WAN IP, use that IP on port 8001
-    return `http://${hostname}:8000`;
+    // 3. In production (Render, custom domain, etc.), use the live origin URL
+    return window.location.origin;
 };
 
 const API_BASE = getApiBase();
@@ -48,7 +52,7 @@ const devicesContainer = document.getElementById('devices-container');
 const integrationContainer = document.getElementById('integration-container');
 
 // Initialization
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
     const urlParams = new URLSearchParams(window.location.search);
     const authMode = urlParams.get('auth');
 
@@ -58,9 +62,32 @@ document.addEventListener('DOMContentLoaded', () => {
         toggleAuthMode(true);
     }
 
-    if (currentToken) showDashboard();
-    else showAuth();
-    // Initialize firmware form & custom dark select UI
+    if (currentToken) {
+        try {
+            const res = await fetch(`${API_BASE}/auth/me`, {
+                headers: { 'Authorization': `Bearer ${currentToken}` }
+            });
+            if (res.ok) {
+                const user = await res.json();
+                localStorage.setItem('iot_role', user.role || 'user');
+                localStorage.setItem('iot_user_name', user.full_name || 'User');
+                showDashboard();
+            } else {
+                localStorage.clear();
+                currentToken = null;
+                currentRole = null;
+                showAuth();
+            }
+        } catch (e) {
+            localStorage.clear();
+            currentToken = null;
+            currentRole = null;
+            showAuth();
+        }
+    } else {
+        showAuth();
+    }
+
     updateFirmwareForm();
     setupCustomSelects();
 });
@@ -175,8 +202,12 @@ window.switchTab = switchTab;
 // Auth Handling
 authForm.onsubmit = async (e) => {
     e.preventDefault();
-    const email = document.getElementById('email').value;
+    const email = document.getElementById('email').value.trim();
     const password = document.getElementById('password').value;
+
+    if (!email || !password) {
+        return showNotification("Email and password are required", "error");
+    }
 
     try {
         if (isLoginMode) {
@@ -200,13 +231,22 @@ authForm.onsubmit = async (e) => {
                     const perms = Array.isArray(data.permissions) ? data.permissions : [];
                     localStorage.setItem('iot_permissions', JSON.stringify(perms));
                 } catch (_) { localStorage.setItem('iot_permissions', '[]'); }
+                showNotification(`Login Successful! Welcome, ${data.full_name || 'User'}.`, 'success');
                 showDashboard();
-            } else showNotification(data.detail || 'Login failed', 'error');
+            } else {
+                showNotification(data.detail || 'Incorrect email or password', 'error');
+            }
         } else {
-            const full_name = document.getElementById('full_name').value;
+            const full_name = document.getElementById('full_name').value.trim();
             const role = document.getElementById('role_select').value;
             const confirm_password = document.getElementById('confirm_password').value;
-            if (password !== confirm_password) return showNotification("Passwords do not match", "error");
+
+            if (!full_name) {
+                return showNotification("Full Name is required for registration", "error");
+            }
+            if (password !== confirm_password) {
+                return showNotification("Passwords do not match", "error");
+            }
 
             const res = await fetch(`${API_BASE}/auth/register`, {
                 method: 'POST',
@@ -215,11 +255,18 @@ authForm.onsubmit = async (e) => {
             });
             const data = await res.json();
             if (res.ok) {
-                showNotification('Account Created! Please Login.', 'success');
+                showNotification('Account Created Successfully! Please enter your password to Log In.', 'success');
+                // Clear password fields so user must explicitly type password to log in
+                document.getElementById('password').value = '';
+                document.getElementById('confirm_password').value = '';
                 toggleAuthMode(true);
-            } else showNotification(data.detail || 'Registration failed', 'error');
+            } else {
+                showNotification(data.detail || 'Registration failed', 'error');
+            }
         }
-    } catch (err) { showNotification('Backend connection failed', 'error'); }
+    } catch (err) {
+        showNotification('Backend connection failed', 'error');
+    }
 };
 
 function showAuth() {

@@ -8,7 +8,8 @@ def landing_page(request):
     return render(request, "landing.html")
 
 def index_dashboard(request):
-    return render(request, "index.html")
+    public_api_url = getattr(settings, "PUBLIC_API_URL", "")
+    return render(request, "index.html", {"public_api_url": public_api_url})
 
 urlpatterns = [
     path("", landing_page, name="landing"),

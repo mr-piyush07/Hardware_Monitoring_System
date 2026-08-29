@@ -1,165 +1,147 @@
-# IoT Guard - Professional Hardware Monitoring System (Django Edition)
+# 🛡️ IoT Guard — Enterprise Hardware Telemetry & Sentinel Monitoring System
 
-A high-performance, modular IoT monitoring platform built with **Django & Django REST Framework (DRF)**. The frontend (HTML/CSS/JS) is served directly by Django from `templates/` and `static/` — no separate frontend server needed.
-
----
-
-## 🚀 Key Features
-
-- **Django Architecture**: Clean modular apps (`auth_app`, `devices_app`, `telemetry_app`, `alerts_app`, `tickets_app`).
-- **Integrated Frontend**: UI served via Django templates (no separate server needed).
-- **Multi-Database Ready**:
-  - **SQLite** (default) — runs out of the box with existing `iot_data.db`.
-  - **PostgreSQL** — switch via `DB_ENGINE=postgresql` environment variable.
-  - **MongoDB** — pluggable `TelemetryRepository` pattern, switch via `DB_ENGINE=mongodb`.
-- **Django Admin** — manage Users, Devices, Alerts, Tickets at `/admin/`.
-- **JWT Auth** — bcrypt password hashing, Redis session tracking (falls back to in-memory if Redis is unavailable).
-- **Background Worker** — offline device heartbeat detection + MQTT listener.
-- **Alert Engine** — rule-based triggers with SMTP email notifications.
+A high-performance, enterprise-grade IoT hardware monitoring and telemetry platform built with **Django**, **Async MQTT**, **REST Telemetry APIs**, **Render Managed PostgreSQL**, and **Chart.js**. Designed for real-time fleet analytics, trigger rule evaluation, support ticketing, multi-node LoRa gateways, and automated firmware generation.
 
 ---
 
-## 🛠️ Technology Stack
+## 🚀 Render Deployment Ready
 
-| Layer | Technology |
-|---|---|
-| Backend Framework | Django 5.0, Django REST Framework |
-| Authentication | JWT (`python-jose`), bcrypt |
-| Session Store | Redis (in-memory FakeRedis fallback) |
-| Database | SQLite (default) / PostgreSQL / MongoDB |
-| IoT Ingestion | HTTP POST + MQTT (`aiomqtt`) |
-| Frontend | Vanilla HTML5 / CSS3 / JavaScript (Chart.js) |
+This repository is **100% Render-ready** for production deployment:
+- ✅ **Automatic Database URL Parsing**: Integrated `dj-database-url` to connect Django directly to Render Managed PostgreSQL via `DATABASE_URL`.
+- ✅ **WhiteNoise Static File Serving**: Configured `whitenoise.middleware.WhiteNoiseMiddleware` with `CompressedManifestStaticFilesStorage`.
+- ✅ **Automated Build Script**: Includes `./build.sh` (`pip install`, `collectstatic`, `migrate`).
+- ✅ **1-Click Render Blueprint**: Includes `render.yaml` for automatic Web Service + PostgreSQL database setup.
 
 ---
 
-## 📂 Project Structure
+## 🌟 Key Features
 
-```text
-hardware_monitoring system/
-├── manage.py                 ← Django management entry point
-├── iot_monitoring/           ← Project config package
-│   ├── settings.py           ← All configuration (DB, Redis, JWT, MQTT)
-│   ├── urls.py               ← Root URL routing
-│   └── wsgi.py
-├── core/                     ← Security, JWT, Redis session helpers, Authentication
-│   ├── security.py           ← bcrypt + PyJWT utilities
-│   ├── redis_client.py       ← Redis / FakeRedis session store
-│   └── authentication.py    ← JWTAuthentication + RoleChecker for DRF
-├── auth_app/                 ← User registration, login, logout, admin user management
-├── devices_app/              ← Device CRUD, hardware secrets, last_seen tracking
-├── telemetry_app/            ← Telemetry ingestion (HTTP + MQTT), history, repository layer
-│   └── repository.py         ← Pluggable: DjangoORMRepository | MongoDBRepository
-├── alerts_app/               ← SMTP configs, alert rules, email alerts, alert logs, support tickets
-├── tickets_app/              ← Standalone support ticket CRUD
-├── templates/
-│   └── index.html            ← Main Dashboard UI (served by Django)
-├── static/
-│   ├── app.js                ← Frontend logic & Chart.js graphs
-│   └── style.css             ← Glassmorphic design system
-├── background_worker.py      ← Async heartbeat monitor + MQTT consumer
-├── iot_data.db               ← SQLite database (auto-used)
-└── requirements.txt
-```
+- ⚡ **Multi-Protocol Telemetry Ingestion**:
+  - **HTTP POST API**: Dedicated `/telemetry/ingest` endpoint with device hardware authentication (`x-hardware-id`, `x-device-secret`).
+  - **Async MQTT Ingestion**: Real-time telemetry ingestion worker built with `aiomqtt`.
+  - **Multi-Node LoRa Routing**: LoRa gateway authentication with dynamic sub-node routing (`node_id` payload mapping).
+- 📊 **Real-Time Overview & Fleet Analytics**:
+  - Dynamic **Chart.js** donut ring charts powered directly by real database telemetry.
+  - Active node health tracking (`Reporting` <10min, `Warning` 10-30min, `Silent` >30min).
+  - Auto-refreshing ticker with instant manual refresh controls.
+- 🛠️ **Interactive Firmware Lab & C++ Code Builder**:
+  - 14 supported hardware modules & sensors (**ESP32**, **SX1276 LoRa**, **BME280**, **BH1750**, **PMS5003**, **Rain Sensor**, **Soil Moisture**, **NEO-6M GPS**, **OLED SSD1306**, **Relay Module**, **Buzzer**, **Status LEDs**, **DS3231 RTC**, **Battery Monitor INA219**).
+  - Dynamic GPIO pin auto-suggestion and customization.
+  - Generates ready-to-flash C++/Arduino code (`main_firmware.ino`).
+- 🗄️ **Multi-Database Abstraction**:
+  - Modular Repository pattern abstraction in `telemetry_app/repository.py`.
+  - Local Dev: Default **SQLite** (`iot_data.db`) or local PostgreSQL.
+  - Production: **Render Managed PostgreSQL** (`DATABASE_URL`).
 
 ---
 
-## 🏁 Quick Start
+## 🚢 Render Deployment Instructions
 
-### 1. Install Dependencies
-```powershell
-pip install -r requirements.txt
+### Method 1: Using Render Blueprints (`render.yaml`) — 1-Click Setup
+
+1. Push this repository to **GitHub**.
+2. Go to [Render Dashboard](https://dashboard.render.com/) → **New** → **Blueprints**.
+3. Connect your GitHub repository.
+4. Render will automatically detect `render.yaml`, create your **Managed PostgreSQL Database**, deploy the **Django Web Service**, set secret keys, and run migrations via `./build.sh`.
+
+---
+
+### Method 2: Manual Step-by-Step Render Setup
+
+#### 1. Create PostgreSQL Database on Render
+- Render Dashboard → **New** → **PostgreSQL**.
+- Name: `iot-monitoring-db`
+- Copy the **Internal Database URL** (e.g. `postgresql://iot_user:password@dpg-xxx/iot_monitoring_db`).
+
+#### 2. Create Web Service on Render
+- Render Dashboard → **New** → **Web Service** → Connect your GitHub repo.
+- **Build Command**: `./build.sh` (or `pip install -r requirements.txt && python manage.py collectstatic --noinput && python manage.py migrate`)
+- **Start Command**: `gunicorn iot_monitoring.wsgi:application`
+
+#### 3. Add Environment Variables in Render Web Service
+Go to Environment tab and add:
+```ini
+DEBUG=False
+SECRET_KEY=your-custom-production-secret-key
+JWT_SECRET_KEY=your-custom-jwt-secret-key
+DATABASE_URL=postgresql://iot_user:password@dpg-xxx/iot_monitoring_db
 ```
+*(Note: `RENDER_EXTERNAL_HOSTNAME` is automatically provided by Render and appended to `ALLOWED_HOSTS`).*
 
-### 2. Run Database Migrations
-```powershell
-python manage.py migrate
-```
-
-### 3. Start the Server
-```powershell
-python manage.py runserver 8000
-```
-
-Open your browser at **[http://localhost:8000](http://localhost:8000)** — the full dashboard UI loads directly from Django.
-
-### 4. (Optional) Start Background Worker
-In a separate terminal for heartbeat monitoring & MQTT ingestion:
-```powershell
-python background_worker.py
-```
-
-### 5. (Optional) Create Django Admin Superuser
-```powershell
+#### 4. Create Django Superuser (Admin Account)
+After deployment completes, open your Web Service **Shell** in Render:
+```bash
 python manage.py createsuperuser
 ```
-Then visit **[http://localhost:8000/admin/](http://localhost:8000/admin/)**.
+Access Django Admin at `https://your-app.onrender.com/admin/`.
 
 ---
 
-## 🗄️ Database Configuration
+## 💻 Local Setup & Development
 
-### Switch to PostgreSQL
-```powershell
-$env:DB_ENGINE="postgresql"
-$env:POSTGRES_DB="iot_monitoring"
-$env:POSTGRES_USER="postgres"
-$env:POSTGRES_PASSWORD="yourpassword"
-$env:POSTGRES_HOST="localhost"
+```bash
+# 1. Clone repository & enter directory
+git clone <your-repo-url>
+cd "hardware_monitoring system"
+
+# 2. Install dependencies
+pip install -r requirements.txt
+
+# 3. Apply local SQLite migrations
 python manage.py migrate
+
+# 4. Start development server
 python manage.py runserver 8000
 ```
-
-### Switch Telemetry to MongoDB
-```powershell
-$env:DB_ENGINE="mongodb"
-$env:MONGO_URI="mongodb://localhost:27017/"
-$env:MONGO_DB_NAME="iot_monitoring"
-python manage.py runserver 8000
-```
-
-> All authentication, devices, alerts — still use Django ORM (SQLite/PostgreSQL).
-> Only high-volume telemetry records route to MongoDB.
+Open **`http://localhost:8000`** in your browser.
 
 ---
 
-## 📡 Hardware Integration (HTTP Ingest)
-
-Send a POST request from your ESP32/ESP8266/LoRa device:
+## 📁 Project Directory Structure
 
 ```
-POST http://<SERVER_IP>:8000/telemetry/ingest
-Headers:
-  Content-Type: application/json
-  x-hardware-id: <YOUR_HWID>
-  x-device-secret: <YOUR_SECRET>
+hardware_monitoring system/
+├── iot_monitoring/           # Main Django Project Settings & Routing
+│   ├── settings.py           # Configured for Render, WhiteNoise, dj-database-url
+│   ├── urls.py               # Main URL Routing
+│   ├── wsgi.py               # WSGI Entry Point for Gunicorn
+│   └── asgi.py               # ASGI Entry Point for Uvicorn
+├── core/                     # JWT Authentication & Core Utilities
+├── auth_app/                 # User Authentication & Role Control (Admin/User)
+├── devices_app/              # Device Management & Registration
+├── telemetry_app/            # Telemetry Ingestion & Database Repository Pattern
+├── alerts_app/               # Alert Trigger Engine & Email Rules
+├── tickets_app/              # Incident Tickets & Incident Queue
+├── static/                   # Static Frontend Assets (CSS, JS)
+├── templates/                # Frontend HTML Templates (SPA UI)
+├── background_worker.py      # Async MQTT Telemetry Background Worker
+├── build.sh                  # Render Build Script
+├── render.yaml               # Render Blueprint Definition
+├── requirements.txt          # Production Dependencies
+├── .env.example              # Environment Variable Template
+├── Dockerfile                # Production Docker Definition
+└── docker-compose.yml        # Docker Multi-Container Compose
+```
 
-Body:
+---
+
+## 🌐 Telemetry API Endpoint
+
+### Ingest Telemetry Data (HTTP POST)
+**Endpoint**: `POST /telemetry/ingest`  
+**Headers**:
+```http
+Content-Type: application/json
+x-hardware-id: ESP32_SENSOR_01
+x-device-secret: YOUR_DEVICE_SECRET_KEY
+```
+**JSON Payload**:
+```json
 {
-  "temp": 24.5,
-  "hum": 60,
-  "voltage": 3.7
+  "data": {
+    "temperature": 26.5,
+    "humidity": 55.0,
+    "pressure": 1013.25
+  }
 }
 ```
-
----
-
-## 🔑 API Endpoints Summary
-
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/register` | Register new user |
-| POST | `/auth/login` | Login (returns JWT token) |
-| POST | `/auth/logout` | Logout (invalidates session) |
-| GET | `/auth/users` | List all users (admin only) |
-| DELETE | `/auth/users/<id>` | Delete user (admin only) |
-| GET/POST | `/devices/` | List / register device |
-| DELETE | `/devices/<id>` | Delete device |
-| GET | `/telemetry/<hardware_id>` | Get device telemetry history |
-| GET | `/telemetry/user/all` | Get all telemetry for current user |
-| POST | `/telemetry/ingest` | Ingest telemetry from hardware |
-| GET/POST | `/alerts/smtp` | Manage SMTP relay configs |
-| POST | `/alerts/smtp/test` | Test SMTP connection |
-| GET/POST | `/alerts/rules` | Manage alert rules |
-| GET | `/alerts/logs/<device_id>` | Get alert logs for device |
-| POST | `/alerts/logs/<log_id>/resolve` | Resolve an alert |
-| GET/POST | `/tickets/` | Support ticket CRUD |

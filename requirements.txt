@@ -1,9 +1,12 @@
 django>=5.0.0,<5.2
 djangorestframework
 django-cors-headers
-psycopg2-binary
+psycopg[binary]
+dj-database-url
+gunicorn
+whitenoise
 pymongo
-python-jose[cryptography]
+PyJWT
 bcrypt==4.0.1
 aiomqtt
 python-dotenv

@@ -1,20 +1,28 @@
+# Dockerfile for IoT Guard Platform
 FROM python:3.11-slim
+
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
 
 WORKDIR /app
 
 # Install system dependencies
-RUN apt-get update && apt-get install -y \
-    build-essential \
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
     libpq-dev \
+    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# Update pip and install requirements
-COPY requirements.txt .
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir --default-timeout=100 -r requirements.txt
+# Install python dependencies
+COPY requirements.txt /app/
+RUN pip install --no-cache-dir -r requirements.txt gunicorn uvicorn
 
-COPY . .
+# Copy application files
+COPY . /app/
 
-EXPOSE 8001
+# Collect static files
+RUN python manage.py collectstatic --noinput
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8001"]
+EXPOSE 8000
+
+CMD ["gunicorn", "iot_monitoring.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "4"]

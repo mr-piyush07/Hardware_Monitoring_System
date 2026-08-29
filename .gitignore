@@ -9,15 +9,15 @@ venv/
 .venv/
 env/
 
-# VS Code
+# IDE & Editor Files
 .vscode/
-
-# PyCharm
 .idea/
 
-# Database
+# Database & Storage
 *.db
 *.sqlite3
+iot_data.db
+staticfiles/
 
 # Environment Variables
 .env

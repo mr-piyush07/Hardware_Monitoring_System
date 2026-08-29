@@ -8,6 +8,7 @@
     <link rel="stylesheet" href="/static/style.css?v=2">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>window.PUBLIC_API_URL = "{{ public_api_url }}";</script>
 </head>
 
 <body>
@@ -47,9 +48,9 @@
                     </div>
 
                     <div id="auth-tabs" class="auth-tabs">
-                        <button id="login-tab-btn" class="auth-tab active"
+                        <button type="button" id="login-tab-btn" class="auth-tab active"
                             onclick="toggleAuthMode(true)">Login</button>
-                        <button id="register-tab-btn" class="auth-tab"
+                        <button type="button" id="register-tab-btn" class="auth-tab"
                             onclick="toggleAuthMode(false)">Register</button>
                     </div>
 
