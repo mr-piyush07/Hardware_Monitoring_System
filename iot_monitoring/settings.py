@@ -12,6 +12,7 @@ try:
     HAS_DJ_DATABASE_URL = True
 except ImportError:
     HAS_DJ_DATABASE_URL = False
+    dj_database_url = None
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -20,8 +21,10 @@ SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-secret-key-iot-monitoring-
 DEBUG = os.getenv("DEBUG", "True").lower() in ("true", "1", "t")
 
 ALLOWED_HOSTS = [h.strip() for h in os.getenv("ALLOWED_HOSTS", "*").split(",") if h.strip()]
+if "*" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append("*")  # Always allow all hosts (override via ALLOWED_HOSTS env var)
 RENDER_HOST = os.getenv("RENDER_EXTERNAL_HOSTNAME")
-if RENDER_HOST:
+if RENDER_HOST and RENDER_HOST not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append(RENDER_HOST)
 
 INSTALLED_APPS = [
@@ -84,12 +87,13 @@ ASGI_APPLICATION = "iot_monitoring.asgi.application"
 
 # ─────────────────────────────────────────────────────────────
 # Database Configuration (Render Managed PostgreSQL & Multi-DB Ready)
+# Priority: DATABASE_URL (Render) > DB_ENGINE=postgresql > SQLite (local)
 # ─────────────────────────────────────────────────────────────
-DATABASE_URL = os.getenv("DATABASE_URL")
+DATABASE_URL = os.getenv("DATABASE_URL", "")
 DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")
 
 if DATABASE_URL and HAS_DJ_DATABASE_URL:
-    # Render Managed PostgreSQL / DATABASE_URL connection string
+    # ✅ Render Managed PostgreSQL via DATABASE_URL connection string
     DATABASES = {
         "default": dj_database_url.config(
             default=DATABASE_URL,
@@ -98,6 +102,7 @@ if DATABASE_URL and HAS_DJ_DATABASE_URL:
         )
     }
 elif DB_ENGINE == "postgresql":
+    # Manual PostgreSQL config via individual env vars
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.postgresql",
@@ -109,7 +114,7 @@ elif DB_ENGINE == "postgresql":
         }
     }
 else:
-    # Default local SQLite fallback
+    # 🖥️ Local development SQLite fallback
     SQLITE_PATH = os.getenv("SQLITE_PATH", str(BASE_DIR / "iot_data.db"))
     DATABASES = {
         "default": {
@@ -122,9 +127,22 @@ else:
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "iot_monitoring")
 
-# CORS Settings
-CORS_ALLOW_ALL_ORIGINS = os.getenv("CORS_ALLOW_ALL", "True").lower() in ("true", "1", "t")
-CORS_ALLOW_CREDENTIALS = False
+# CORS Settings - Always allow all in production to prevent "backend not connect" errors
+CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+CORS_ALLOW_HEADERS = [
+    "accept",
+    "accept-encoding",
+    "authorization",
+    "content-type",
+    "dnt",
+    "origin",
+    "user-agent",
+    "x-csrftoken",
+    "x-requested-with",
+    "x-hardware-id",
+    "x-device-secret",
+]
 
 # REST Framework
 REST_FRAMEWORK = {
