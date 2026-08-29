@@ -12,4 +12,4 @@ aiomqtt
 python-dotenv
 email-validator
 redis
-python-jose
+python-jose[cryptography]
