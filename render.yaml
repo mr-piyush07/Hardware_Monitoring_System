@@ -1,10 +1,11 @@
-# Render Blueprint Spec (1-Click Deployment)
+# Render Blueprint Spec (100% Free Tier Deployment)
 # https://render.com/docs/blueprint-spec
 
 services:
   - type: web
     name: iot-monitoring-service
     env: python
+    plan: free
     buildCommand: ./build.sh
     startCommand: gunicorn iot_monitoring.wsgi:application
     envVars:
