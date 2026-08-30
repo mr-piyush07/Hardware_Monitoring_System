@@ -1,8 +1,11 @@
 // Automatically detect the correct API backend host
 const getApiBase = () => {
-    // 1. If explicit environment variable PUBLIC_API_URL is configured, use it!
-    if (window.PUBLIC_API_URL && typeof window.PUBLIC_API_URL === 'string' && window.PUBLIC_API_URL.trim() !== '') {
-        return window.PUBLIC_API_URL.trim().replace(/\/+$/, '');
+    // 1. If explicit environment variable PUBLIC_API_URL is configured and valid, use it!
+    if (window.PUBLIC_API_URL && typeof window.PUBLIC_API_URL === 'string') {
+        const val = window.PUBLIC_API_URL.trim();
+        if (val.startsWith('http://') || val.startsWith('https://')) {
+            return val.replace(/\/+$/, '');
+        }
     }
     const hostname = window.location.hostname;
     // 2. If running locally, default to http://localhost:8000
@@ -211,13 +214,10 @@ authForm.onsubmit = async (e) => {
 
     try {
         if (isLoginMode) {
-            const formData = new URLSearchParams();
-            formData.append('username', email);
-            formData.append('password', password);
             const res = await fetch(`${API_BASE}/auth/login`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: formData
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: email, email: email, password: password })
             });
             const data = await res.json();
             if (res.ok) {
@@ -270,13 +270,17 @@ authForm.onsubmit = async (e) => {
 };
 
 function showAuth() {
-    authSection.classList.remove('hidden');
-    dashboardSection.classList.add('hidden');
+    const authSec = document.getElementById('auth-section') || authSection;
+    const dashSec = document.getElementById('dashboard-section') || dashboardSection;
+    if (authSec) authSec.classList.remove('hidden');
+    if (dashSec) dashSec.classList.add('hidden');
 }
 
 function showDashboard() {
-    authSection.classList.add('hidden');
-    dashboardSection.classList.remove('hidden');
+    const authSec = document.getElementById('auth-section') || authSection;
+    const dashSec = document.getElementById('dashboard-section') || dashboardSection;
+    if (authSec) authSec.classList.add('hidden');
+    if (dashSec) dashSec.classList.remove('hidden');
     applyRolePermissions();
     switchTab('overview');
 }
