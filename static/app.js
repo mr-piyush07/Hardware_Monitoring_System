@@ -46,23 +46,198 @@ let dashboardInterval = null;
 let charts = {};
 const USER_CACHE = {};
 
-// DOM Elements
-const authSection = document.getElementById('auth-section');
-const dashboardSection = document.getElementById('dashboard-section');
-const authForm = document.getElementById('auth-form');
-const toast = document.getElementById('notification-toast');
-const devicesContainer = document.getElementById('devices-container');
-const integrationContainer = document.getElementById('integration-container');
+// ─────────────────────────────────────────────────────────────
+// Auth System — Clean, Modern & Robust
+// ─────────────────────────────────────────────────────────────
+let selectedAccountRole = 'admin';
+
+function logout() {
+    localStorage.clear();
+    currentToken = null;
+    currentRole = null;
+    showAuth();
+    switchAuthMode('login');
+    showNotification('Logged out successfully', 'info');
+}
+window.logout = logout;
+
+function switchAuthMode(mode) {
+    const isLogin = mode === 'login';
+    isLoginMode = isLogin;
+    window.isLoginMode = isLogin;
+
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    if (tabLogin) {
+        if (isLogin) tabLogin.classList.add('active');
+        else tabLogin.classList.remove('active');
+    }
+    if (tabRegister) {
+        if (isLogin) tabRegister.classList.remove('active');
+        else tabRegister.classList.add('active');
+    }
+
+    // Toggle registration fields by ID and class
+    const fFull = document.getElementById('field-fullname');
+    const fRole = document.getElementById('field-role');
+    const fConf = document.getElementById('field-confirm-pass');
+
+    if (fFull) fFull.style.setProperty('display', isLogin ? 'none' : 'flex', 'important');
+    if (fRole) fRole.style.setProperty('display', isLogin ? 'none' : 'flex', 'important');
+    if (fConf) fConf.style.setProperty('display', isLogin ? 'none' : 'flex', 'important');
+
+    const btnText = document.getElementById('auth-btn-text');
+    const footerPrompt = document.getElementById('auth-footer-prompt');
+    const footerAction = document.getElementById('auth-footer-action');
+
+    if (btnText) {
+        btnText.innerHTML = isLogin 
+            ? '<i class="fas fa-lock"></i> SIGN IN TO PLATFORM'
+            : '<i class="fas fa-user-plus"></i> CREATE ACCOUNT & ACCESS';
+    }
+    if (footerPrompt) {
+        footerPrompt.innerText = isLogin ? "Don't have an account?" : "Already have an account?";
+    }
+    if (footerAction) {
+        footerAction.innerText = isLogin ? "Create Admin Account" : "Sign In to Account";
+    }
+}
+window.switchAuthMode = switchAuthMode;
+window.toggleAuthMode = (login) => switchAuthMode(login ? 'login' : 'register');
+
+function selectRole(role) {
+    selectedAccountRole = role;
+    document.querySelectorAll('.role-pill').forEach(pill => {
+        const input = pill.querySelector('input');
+        if (input) {
+            const isMatch = input.value === role;
+            input.checked = isMatch;
+            pill.classList.toggle('active', isMatch);
+        }
+    });
+}
+window.selectRole = selectRole;
+
+function togglePassVisibility(fieldId) {
+    const input = document.getElementById(fieldId);
+    if (!input) return;
+    const isPass = input.type === 'password';
+    input.type = isPass ? 'text' : 'password';
+    const icon = input.parentElement.querySelector('.toggle-pass-icon');
+    if (icon) {
+        icon.classList.toggle('fa-eye', !isPass);
+        icon.classList.toggle('fa-eye-slash', isPass);
+    }
+}
+window.togglePassVisibility = togglePassVisibility;
+
+async function executeAuthSubmit(e) {
+    if (e) {
+        e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const email = emailEl ? emailEl.value.trim() : '';
+    const password = passwordEl ? passwordEl.value : '';
+
+    if (!email || !password) {
+        showNotification("Email and password are required", "error");
+        return false;
+    }
+
+    const submitBtn = document.getElementById('auth-submit-btn');
+    if (submitBtn) submitBtn.disabled = true;
+
+    try {
+        if (isLoginMode) {
+            const res = await fetch(`${API_BASE}/auth/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: email, email: email, password: password })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                currentToken = data.access_token;
+                const safeRole = toLowerSafe(data.role, 'user') || 'user';
+                currentRole = safeRole;
+                localStorage.setItem('iot_token', currentToken);
+                localStorage.setItem('iot_role', safeRole);
+                localStorage.setItem('iot_user_name', data.full_name || 'User');
+                try {
+                    const perms = Array.isArray(data.permissions) ? data.permissions : [];
+                    localStorage.setItem('iot_permissions', JSON.stringify(perms));
+                } catch (_) { localStorage.setItem('iot_permissions', '[]'); }
+                showNotification(`Login Successful! Welcome, ${data.full_name || 'User'}.`, 'success');
+                showDashboard();
+            } else {
+                showNotification(data.detail || 'Incorrect email or password', 'error');
+            }
+        } else {
+            const fullNameEl = document.getElementById('full_name');
+            const confirmPassEl = document.getElementById('confirm_password');
+            const full_name = fullNameEl ? fullNameEl.value.trim() : '';
+            const confirm_password = confirmPassEl ? confirmPassEl.value : '';
+
+            if (!full_name) {
+                showNotification("Full Name is required for registration", "error");
+                if (submitBtn) submitBtn.disabled = false;
+                return false;
+            }
+            if (password !== confirm_password) {
+                showNotification("Passwords do not match", "error");
+                if (submitBtn) submitBtn.disabled = false;
+                return false;
+            }
+
+            const res = await fetch(`${API_BASE}/auth/register`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    email: email,
+                    password: password,
+                    full_name: full_name,
+                    role: selectedAccountRole
+                })
+            });
+            const data = await res.json();
+            if (res.ok) {
+                showNotification('Account Created Successfully! Please sign in with your credentials.', 'success');
+                if (passwordEl) passwordEl.value = '';
+                if (confirmPassEl) confirmPassEl.value = '';
+                switchAuthMode('login');
+            } else {
+                showNotification(data.detail || 'Registration failed', 'error');
+            }
+        }
+    } catch (err) {
+        showNotification('Backend connection failed', 'error');
+    } finally {
+        if (submitBtn) submitBtn.disabled = false;
+    }
+    return false;
+}
+window.executeAuthSubmit = executeAuthSubmit;
+window.handleAuthSubmit = executeAuthSubmit;
 
 // Initialization
 document.addEventListener('DOMContentLoaded', async () => {
+    const tabLogin = document.getElementById('tab-login');
+    const tabRegister = document.getElementById('tab-register');
+    const footerAction = document.getElementById('auth-footer-action');
+
+    if (tabLogin) tabLogin.onclick = (e) => { e.preventDefault(); switchAuthMode('login'); };
+    if (tabRegister) tabRegister.onclick = (e) => { e.preventDefault(); switchAuthMode('register'); };
+    if (footerAction) footerAction.onclick = (e) => { e.preventDefault(); switchAuthMode(isLoginMode ? 'register' : 'login'); };
+
     const urlParams = new URLSearchParams(window.location.search);
     const authMode = urlParams.get('auth');
 
     if (authMode === 'register') {
-        toggleAuthMode(false);
-    } else if (authMode === 'login') {
-        toggleAuthMode(true);
+        switchAuthMode('register');
+    } else {
+        switchAuthMode('login');
     }
 
     if (currentToken) {
@@ -94,22 +269,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     updateFirmwareForm();
     setupCustomSelects();
 });
-
-// UI Logic
-function toggleAuthMode(login) {
-    isLoginMode = login;
-    const loginBtn = document.getElementById('login-tab-btn');
-    const registerBtn = document.getElementById('register-tab-btn');
-
-    loginBtn.classList.toggle('active', login);
-    registerBtn.classList.toggle('active', !login);
-
-    document.getElementById('full-name-group').classList.toggle('hidden', login);
-    document.getElementById('role-group').classList.toggle('hidden', login);
-    document.getElementById('confirm-pass-group').classList.toggle('hidden', login);
-    document.getElementById('auth-btn-text').innerText = login ? 'Log In' : 'Create Account';
-}
-window.toggleAuthMode = toggleAuthMode;
 
 function toLowerSafe(v, d = '') { try { return (v == null ? d : String(v)).toLowerCase(); } catch (e) { return d; } }
 
@@ -203,13 +362,19 @@ function switchTab(tabId) {
 window.switchTab = switchTab;
 
 // Auth Handling
-authForm.onsubmit = async (e) => {
-    e.preventDefault();
-    const email = document.getElementById('email').value.trim();
-    const password = document.getElementById('password').value;
+async function handleAuthSubmit(e) {
+    if (e) {
+        e.preventDefault();
+        if (typeof e.stopPropagation === 'function') e.stopPropagation();
+    }
+    const emailEl = document.getElementById('email');
+    const passwordEl = document.getElementById('password');
+    const email = emailEl ? emailEl.value.trim() : '';
+    const password = passwordEl ? passwordEl.value : '';
 
     if (!email || !password) {
-        return showNotification("Email and password are required", "error");
+        showNotification("Email and password are required", "error");
+        return false;
     }
 
     try {
@@ -237,15 +402,21 @@ authForm.onsubmit = async (e) => {
                 showNotification(data.detail || 'Incorrect email or password', 'error');
             }
         } else {
-            const full_name = document.getElementById('full_name').value.trim();
-            const role = document.getElementById('role_select').value;
-            const confirm_password = document.getElementById('confirm_password').value;
+            const fullNameEl = document.getElementById('full_name');
+            const roleSelectEl = document.getElementById('role_select');
+            const confirmPassEl = document.getElementById('confirm_password');
+
+            const full_name = fullNameEl ? fullNameEl.value.trim() : '';
+            const role = roleSelectEl ? roleSelectEl.value : 'user';
+            const confirm_password = confirmPassEl ? confirmPassEl.value : '';
 
             if (!full_name) {
-                return showNotification("Full Name is required for registration", "error");
+                showNotification("Full Name is required for registration", "error");
+                return false;
             }
             if (password !== confirm_password) {
-                return showNotification("Passwords do not match", "error");
+                showNotification("Passwords do not match", "error");
+                return false;
             }
 
             const res = await fetch(`${API_BASE}/auth/register`, {
@@ -256,9 +427,8 @@ authForm.onsubmit = async (e) => {
             const data = await res.json();
             if (res.ok) {
                 showNotification('Account Created Successfully! Please enter your password to Log In.', 'success');
-                // Clear password fields so user must explicitly type password to log in
-                document.getElementById('password').value = '';
-                document.getElementById('confirm_password').value = '';
+                if (passwordEl) passwordEl.value = '';
+                if (confirmPassEl) confirmPassEl.value = '';
                 toggleAuthMode(true);
             } else {
                 showNotification(data.detail || 'Registration failed', 'error');
@@ -267,7 +437,13 @@ authForm.onsubmit = async (e) => {
     } catch (err) {
         showNotification('Backend connection failed', 'error');
     }
-};
+    return false;
+}
+window.handleAuthSubmit = handleAuthSubmit;
+const authFormEl = document.getElementById('auth-form');
+if (authFormEl) {
+    authFormEl.onsubmit = handleAuthSubmit;
+}
 
 function showAuth() {
     const authSec = document.getElementById('auth-section') || authSection;
@@ -1063,179 +1239,6 @@ function addCustomComponent() {
 window.addCustomComponent = addCustomComponent;
 
 
-    {
-        id: 'sx1276',
-        name: 'SX1276 LoRa',
-        category: 'RF',
-        icon: '📡',
-        color: '#8b5cf6',
-        interface: 'SPI',
-        pins: { SS: { label: 'SS/NSS', default: 5 }, RST: { label: 'RESET', default: 14 }, DIO0: { label: 'DIO0', default: 2 } },
-        includes: ['<SPI.h>', '<LoRa.h>'],
-        setup: '  LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);\n  if (!LoRa.begin(915E6)) { Serial.println("LoRa failed"); while(1); }\n  LoRa.setSyncWord(0x12);',
-        loop: '',
-        payloadKeys: []
-    },
-    {
-        id: 'bme280',
-        name: 'BME280',
-        category: 'Environment',
-        icon: '🌡️',
-        color: '#10b981',
-        interface: 'I2C',
-        pins: { SDA: { label: 'SDA', default: 21 }, SCL: { label: 'SCL', default: 22 } },
-        includes: ['<Wire.h>', '<Adafruit_BME280.h>'],
-        setup: '  bme.begin(0x76);',
-        loop: '  float temperature = bme.readTemperature();\n  float humidity = bme.readHumidity();\n  float pressure = bme.readPressure() / 100.0F;',
-        payloadKeys: ['temperature', 'humidity', 'pressure']
-    },
-    {
-        id: 'bh1750',
-        name: 'BH1750',
-        category: 'Light',
-        icon: '💡',
-        color: '#f59e0b',
-        interface: 'I2C',
-        pins: { SDA: { label: 'SDA', default: 21 }, SCL: { label: 'SCL', default: 22 } },
-        includes: ['<Wire.h>', '<BH1750.h>'],
-        setup: '  lightMeter.begin();',
-        loop: '  float lux = lightMeter.readLightLevel();',
-        payloadKeys: ['lux']
-    },
-    {
-        id: 'pms5003',
-        name: 'PMS5003',
-        category: 'Air Quality',
-        icon: '💨',
-        color: '#ef4444',
-        interface: 'UART',
-        pins: { TX: { label: 'TX→RX', default: 16 }, RX: { label: 'RX→TX', default: 17 } },
-        includes: ['<PMS.h>'],
-        setup: '  Serial2.begin(9600, SERIAL_8N1, PMS_RX, PMS_TX);\n  pms.passiveMode();',
-        loop: '  pms.requestRead();\n  PMS::DATA data;\n  if (pms.readUntil(data)) {\n    int pm25 = data.PM_AE_UG_2_5;\n    int pm10 = data.PM_AE_UG_10_0;\n  }',
-        payloadKeys: ['pm25', 'pm10']
-    },
-    {
-        id: 'rain_sensor',
-        name: 'Rain Sensor',
-        category: 'Weather',
-        icon: '🌧️',
-        color: '#3b82f6',
-        interface: 'Analog',
-        pins: { AOUT: { label: 'Analog OUT', default: 34 }, DOUT: { label: 'Digital OUT', default: 35 } },
-        includes: [],
-        setup: '  pinMode(RAIN_DPIN, INPUT);',
-        loop: '  int rainAnalog = analogRead(RAIN_APIN);\n  bool raining = !digitalRead(RAIN_DPIN);',
-        payloadKeys: ['rain_analog', 'raining']
-    },
-    {
-        id: 'soil_moisture',
-        name: 'Soil Moisture',
-        category: 'Agriculture',
-        icon: '🌱',
-        color: '#84cc16',
-        interface: 'Analog',
-        pins: { AOUT: { label: 'Analog OUT', default: 32 } },
-        includes: [],
-        setup: '',
-        loop: '  int soilRaw = analogRead(SOIL_PIN);\n  float soilMoisture = map(soilRaw, 4095, 0, 0, 100);',
-        payloadKeys: ['soil_moisture']
-    },
-    {
-        id: 'neo6m',
-        name: 'NEO-6M GPS',
-        category: 'Location',
-        icon: '🛰️',
-        color: '#06b6d4',
-        interface: 'UART',
-        pins: { TX: { label: 'GPS TX→', default: 16 }, RX: { label: 'GPS RX←', default: 17 } },
-        includes: ['<TinyGPS++.h>'],
-        setup: '  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);\n  gps.begin(gpsSerial);',
-        loop: '  while (gpsSerial.available()) gps.encode(gpsSerial.read());\n  float lat = gps.location.lat();\n  float lng = gps.location.lng();\n  float gpsAlt = gps.altitude.meters();',
-        payloadKeys: ['latitude', 'longitude', 'altitude']
-    },
-    {
-        id: 'oled_ssd1306',
-        name: 'OLED SSD1306',
-        category: 'Display',
-        icon: '🖥️',
-        color: '#a78bfa',
-        interface: 'I2C',
-        pins: { SDA: { label: 'SDA', default: 21 }, SCL: { label: 'SCL', default: 22 } },
-        includes: ['<Wire.h>', '<Adafruit_GFX.h>', '<Adafruit_SSD1306.h>'],
-        setup: '  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);\n  display.clearDisplay();\n  display.setTextColor(WHITE);\n  display.display();',
-        loop: '  display.clearDisplay();\n  display.setCursor(0,0);\n  display.println("IoT Guard");\n  display.display();',
-        payloadKeys: []
-    },
-    {
-        id: 'relay',
-        name: 'Relay Module',
-        category: 'Actuator',
-        icon: '🔌',
-        color: '#f97316',
-        interface: 'Digital',
-        pins: { IN: { label: 'Control IN', default: 26 } },
-        includes: [],
-        setup: '  pinMode(RELAY_PIN, OUTPUT);\n  digitalWrite(RELAY_PIN, HIGH); // Relay OFF initially',
-        loop: '',
-        payloadKeys: ['relay_state']
-    },
-    {
-        id: 'buzzer',
-        name: 'Buzzer',
-        category: 'Actuator',
-        icon: '🔔',
-        color: '#ec4899',
-        interface: 'Digital',
-        pins: { PIN: { label: 'Signal PIN', default: 27 } },
-        includes: [],
-        setup: '  pinMode(BUZZER_PIN, OUTPUT);',
-        loop: '',
-        payloadKeys: []
-    },
-    {
-        id: 'status_leds',
-        name: 'Status LEDs',
-        category: 'Output',
-        icon: '🚦',
-        color: '#22d3ee',
-        interface: 'Digital',
-        pins: { RED: { label: 'Red LED', default: 25 }, GREEN: { label: 'Green LED', default: 26 }, BLUE: { label: 'Blue LED', default: 27 } },
-        includes: [],
-        setup: '  pinMode(LED_RED, OUTPUT);\n  pinMode(LED_GREEN, OUTPUT);\n  pinMode(LED_BLUE, OUTPUT);',
-        loop: '',
-        payloadKeys: []
-    },
-    {
-        id: 'ds3231',
-        name: 'DS3231 RTC',
-        category: 'Time',
-        icon: '🕐',
-        color: '#6366f1',
-        interface: 'I2C',
-        pins: { SDA: { label: 'SDA', default: 21 }, SCL: { label: 'SCL', default: 22 } },
-        includes: ['<Wire.h>', '<RTClib.h>'],
-        setup: '  if (!rtc.begin()) { Serial.println("RTC not found"); }\n  if (rtc.lostPower()) { rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); }',
-        loop: '  DateTime now = rtc.now();\n  String timestamp = String(now.year()) + "-" + String(now.month()) + "-" + String(now.day());',
-        payloadKeys: ['rtc_timestamp']
-    },
-    {
-        id: 'ina219',
-        name: 'Battery (INA219)',
-        category: 'Power',
-        icon: '🔋',
-        color: '#34d399',
-        interface: 'I2C',
-        pins: { SDA: { label: 'SDA', default: 21 }, SCL: { label: 'SCL', default: 22 } },
-        includes: ['<Wire.h>', '<Adafruit_INA219.h>'],
-        setup: '  ina219.begin();',
-        loop: '  float busVoltage = ina219.getBusVoltage_V();\n  float current_mA = ina219.getCurrent_mA();\n  float power_mW = ina219.getPower_mW();',
-        payloadKeys: ['voltage', 'current_mA', 'power_mW']
-    }
-];
-
-// State: selected sensors and their pin values
-let selectedSensors = {}; // { sensorId: { pinKey: pinValue, ... } }
 
 function initFirmwareLab() {
     document.getElementById('gen-api-url').value = `${API_BASE}/telemetry/ingest`;
@@ -1264,31 +1267,7 @@ function initFirmwareLab() {
     };
 }
 
-function renderSensorLibrary() {
-    const grid = document.getElementById('sensor-library-grid');
-    if (!grid) return;
-    grid.innerHTML = SENSOR_LIBRARY.map(s => {
-        const isSelected = !!selectedSensors[s.id];
-        return `<div id="slib-${s.id}" onclick="toggleSensor('${s.id}')"
-            style="
-                cursor:pointer;
-                padding:10px 12px;
-                border-radius:12px;
-                border:1.5px solid ${isSelected ? s.color : 'var(--border)'};
-                background:${isSelected ? `rgba(${hexToRgb(s.color)},0.12)` : 'rgba(255,255,255,0.02)'};
-                transition:all 0.2s;
-                position:relative;
-            "
-            onmouseenter="this.style.borderColor='${s.color}';this.style.background='rgba(${hexToRgb(s.color)},0.08)'"
-            onmouseleave="if(!${isSelected}){this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,0.02)'}"
-        >
-            ${isSelected ? `<div style="position:absolute;top:6px;right:8px;width:16px;height:16px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:0.55rem;color:#000;font-weight:900;">✓</div>` : ''}
-            <div style="font-size:1.3rem;margin-bottom:4px;">${s.icon}</div>
-            <div style="font-size:0.78rem;font-weight:600;color:#fff;line-height:1.3;">${s.name}</div>
-            <div style="font-size:0.65rem;color:${s.color};margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;">${s.interface} · ${s.category}</div>
-        </div>`;
-    }).join('');
-}
+
 
 function hexToRgb(hex) {
     const r = parseInt(hex.slice(1, 3), 16);
