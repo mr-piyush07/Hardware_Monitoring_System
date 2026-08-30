@@ -20,12 +20,4 @@ services:
       - key: PYTHON_VERSION
         value: "3.11.0"
       - key: DATABASE_URL
-        fromDatabase:
-          name: iot-dashboard-gen7-db
-          property: connectionString
-
-databases:
-  - name: iot-dashboard-gen7-db
-    databaseName: iot_dashboard_gen7
-    user: iot_dashboard_gen7_user
-    plan: free
+        value: "postgresql://iot_dashboard_gen7_user:J4icgWEaGCcpbjor9JnZi9lQrCKLAFig@dpg-da9ca6u7bikc738tj1rg-a/iot_dashboard_gen7"

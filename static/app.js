@@ -698,24 +698,367 @@ window.showRegisterModal = showRegisterModal;
 function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
 window.hideModal = hideModal;
 
+
 // ─────────────────────────────────────────────────────────────────
-// FIRMWARE LAB — Sensor Library + Dynamic Pin Config + Code Gen
+// FIRMWARE LAB — Component Library (Sensors + Actuators) + Search + Custom
 // ─────────────────────────────────────────────────────────────────
 
-const SENSOR_LIBRARY = [
-    {
-        id: 'esp32',
-        name: 'ESP32',
-        category: 'MCU',
-        icon: '🧠',
-        color: '#06b6d4',
-        interface: 'BUILTIN',
-        pins: {},
-        includes: [],
-        setup: '',
-        loop: '',
-        payloadKeys: []
-    },
+const COMPONENT_LIBRARY = [
+    // ── MCU ──────────────────────────────────────────────────────
+    { id:'esp32', name:'ESP32', category:'MCU', icon:'🧠', color:'#06b6d4', interface:'BUILTIN',
+      pins:{}, includes:[], setup:'', loop:'', payloadKeys:[] },
+
+    // ── Sensors ──────────────────────────────────────────────────
+    { id:'dht11', name:'DHT11', category:'Environment', icon:'🌡️', color:'#10b981', interface:'Digital',
+      pins:{ DATA:{ label:'DATA', default:4 } },
+      includes:['<DHT.h>'],
+      setup:'  dht11.begin();',
+      loop:'  float temperature = dht11.readTemperature();\n  float humidity = dht11.readHumidity();',
+      payloadKeys:['temperature','humidity'] },
+
+    { id:'dht22', name:'DHT22', category:'Environment', icon:'🌡️', color:'#34d399', interface:'Digital',
+      pins:{ DATA:{ label:'DATA', default:4 } },
+      includes:['<DHT.h>'],
+      setup:'  dht22.begin();',
+      loop:'  float temperature = dht22.readTemperature();\n  float humidity = dht22.readHumidity();',
+      payloadKeys:['temperature','humidity'] },
+
+    { id:'ds18b20', name:'DS18B20', category:'Temperature', icon:'🌡️', color:'#f59e0b', interface:'1-Wire',
+      pins:{ DATA:{ label:'DATA (1-Wire)', default:4 } },
+      includes:['<OneWire.h>','<DallasTemperature.h>'],
+      setup:'  sensors.begin();',
+      loop:'  sensors.requestTemperatures();\n  float temperature = sensors.getTempCByIndex(0);',
+      payloadKeys:['temperature'] },
+
+    { id:'bme280', name:'BME280', category:'Environment', icon:'🌤️', color:'#0ea5e9', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<Adafruit_BME280.h>'],
+      setup:'  bme.begin(0x76);',
+      loop:'  float temperature = bme.readTemperature();\n  float humidity = bme.readHumidity();\n  float pressure = bme.readPressure() / 100.0F;',
+      payloadKeys:['temperature','humidity','pressure'] },
+
+    { id:'bh1750', name:'BH1750', category:'Light', icon:'💡', color:'#f59e0b', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<BH1750.h>'],
+      setup:'  lightMeter.begin();',
+      loop:'  float lux = lightMeter.readLightLevel();',
+      payloadKeys:['lux'] },
+
+    { id:'mq2', name:'MQ-2 Gas', category:'Air Quality', icon:'💨', color:'#ef4444', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:34 }, DO:{ label:'Digital OUT', default:27 } },
+      includes:[],
+      setup:'  pinMode(MQ2_DO, INPUT);',
+      loop:'  int gasLevel = analogRead(MQ2_AO);\n  bool gasAlert = !digitalRead(MQ2_DO);',
+      payloadKeys:['gas_level','gas_alert'] },
+
+    { id:'mq135', name:'MQ-135 Air', category:'Air Quality', icon:'🌫️', color:'#f97316', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:35 }, DO:{ label:'Digital OUT', default:27 } },
+      includes:[],
+      setup:'  pinMode(MQ135_DO, INPUT);',
+      loop:'  int airQuality = analogRead(MQ135_AO);\n  bool airAlert = !digitalRead(MQ135_DO);',
+      payloadKeys:['air_quality','air_alert'] },
+
+    { id:'hcsr04', name:'HC-SR04', category:'Distance', icon:'📡', color:'#8b5cf6', interface:'Digital',
+      pins:{ TRIG:{ label:'TRIG', default:5 }, ECHO:{ label:'ECHO', default:18 } },
+      includes:[],
+      setup:'  pinMode(TRIG_PIN, OUTPUT);\n  pinMode(ECHO_PIN, INPUT);',
+      loop:'  digitalWrite(TRIG_PIN, LOW); delayMicroseconds(2);\n  digitalWrite(TRIG_PIN, HIGH); delayMicroseconds(10);\n  digitalWrite(TRIG_PIN, LOW);\n  long duration = pulseIn(ECHO_PIN, HIGH);\n  float distance = duration * 0.034 / 2;',
+      payloadKeys:['distance_cm'] },
+
+    { id:'pir', name:'PIR HC-SR501', category:'Motion', icon:'👁️', color:'#ec4899', interface:'Digital',
+      pins:{ OUT:{ label:'OUT', default:27 } },
+      includes:[],
+      setup:'  pinMode(PIR_PIN, INPUT);',
+      loop:'  bool motionDetected = digitalRead(PIR_PIN);',
+      payloadKeys:['motion'] },
+
+    { id:'ldr', name:'LDR Module', category:'Light', icon:'☀️', color:'#fbbf24', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:34 } },
+      includes:[],
+      setup:'',
+      loop:'  int lightLevel = analogRead(LDR_PIN);',
+      payloadKeys:['light_level'] },
+
+    { id:'soil_moisture', name:'Soil Moisture', category:'Agriculture', icon:'🌱', color:'#84cc16', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:35 } },
+      includes:[],
+      setup:'',
+      loop:'  int soilRaw = analogRead(SOIL_PIN);\n  float soilMoisture = map(soilRaw, 4095, 0, 0, 100);',
+      payloadKeys:['soil_moisture'] },
+
+    { id:'rain_sensor', name:'Rain Sensor', category:'Weather', icon:'🌧️', color:'#3b82f6', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:34 }, DO:{ label:'Digital OUT', default:35 } },
+      includes:[],
+      setup:'  pinMode(RAIN_DPIN, INPUT);',
+      loop:'  int rainAnalog = analogRead(RAIN_APIN);\n  bool raining = !digitalRead(RAIN_DPIN);',
+      payloadKeys:['rain_analog','raining'] },
+
+    { id:'flame', name:'Flame Sensor', category:'Safety', icon:'🔥', color:'#dc2626', interface:'Analog',
+      pins:{ AO:{ label:'Analog OUT', default:34 }, DO:{ label:'Digital OUT', default:27 } },
+      includes:[],
+      setup:'  pinMode(FLAME_DO, INPUT);',
+      loop:'  bool flameDetected = !digitalRead(FLAME_DO);\n  int flameLevel = analogRead(FLAME_AO);',
+      payloadKeys:['flame_detected','flame_level'] },
+
+    { id:'ir_obstacle', name:'IR Obstacle', category:'Detection', icon:'🚧', color:'#a78bfa', interface:'Digital',
+      pins:{ OUT:{ label:'OUT', default:27 } },
+      includes:[],
+      setup:'  pinMode(IR_PIN, INPUT);',
+      loop:'  bool obstacleDetected = !digitalRead(IR_PIN);',
+      payloadKeys:['obstacle'] },
+
+    { id:'mpu6050', name:'MPU6050', category:'IMU', icon:'⚡', color:'#06b6d4', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<MPU6050.h>'],
+      setup:'  Wire.begin();\n  mpu.initialize();\n  mpu.testConnection();',
+      loop:'  int16_t ax,ay,az,gx,gy,gz;\n  mpu.getMotion6(&ax,&ay,&az,&gx,&gy,&gz);',
+      payloadKeys:['accel_x','accel_y','accel_z'] },
+
+    { id:'rc522', name:'RC522 RFID', category:'RFID', icon:'📟', color:'#f59e0b', interface:'SPI',
+      pins:{ SS:{ label:'SS', default:5 }, SCK:{ label:'SCK', default:18 }, MOSI:{ label:'MOSI', default:23 }, MISO:{ label:'MISO', default:19 }, RST:{ label:'RST', default:22 } },
+      includes:['<SPI.h>','<MFRC522.h>'],
+      setup:'  SPI.begin();\n  mfrc522.PCD_Init();',
+      loop:'  if (!mfrc522.PICC_IsNewCardPresent()) return;\n  if (!mfrc522.PICC_ReadCardSerial()) return;\n  String cardUID = "";',
+      payloadKeys:['rfid_uid'] },
+
+    { id:'pms5003', name:'PMS5003', category:'Air Quality', icon:'💨', color:'#6366f1', interface:'UART',
+      pins:{ TX:{ label:'TX→RX', default:16 }, RX:{ label:'RX→TX', default:17 } },
+      includes:['<PMS.h>'],
+      setup:'  Serial2.begin(9600, SERIAL_8N1, PMS_RX, PMS_TX);\n  pms.passiveMode();',
+      loop:'  pms.requestRead();\n  PMS::DATA data;\n  if (pms.readUntil(data)) {\n    int pm25 = data.PM_AE_UG_2_5;\n    int pm10 = data.PM_AE_UG_10_0;\n  }',
+      payloadKeys:['pm25','pm10'] },
+
+    { id:'neo6m', name:'NEO-6M GPS', category:'Location', icon:'🛰️', color:'#22d3ee', interface:'UART',
+      pins:{ TX:{ label:'GPS TX→', default:16 }, RX:{ label:'GPS RX←', default:17 } },
+      includes:['<TinyGPS++.h>'],
+      setup:'  gpsSerial.begin(9600, SERIAL_8N1, GPS_RX, GPS_TX);',
+      loop:'  while (gpsSerial.available()) gps.encode(gpsSerial.read());\n  float lat = gps.location.lat();\n  float lng = gps.location.lng();',
+      payloadKeys:['latitude','longitude'] },
+
+    { id:'hc05', name:'HC-05 Bluetooth', category:'Wireless', icon:'📶', color:'#3b82f6', interface:'UART',
+      pins:{ TXD:{ label:'TXD', default:16 }, RXD:{ label:'RXD', default:17 } },
+      includes:[],
+      setup:'  Serial2.begin(9600, SERIAL_8N1, HC05_RX, HC05_TX);',
+      loop:'  if (Serial2.available()) {\n    String cmd = Serial2.readString();\n  }',
+      payloadKeys:[] },
+
+    { id:'sx1276', name:'SX1276 LoRa', category:'RF', icon:'📡', color:'#8b5cf6', interface:'SPI',
+      pins:{ SS:{ label:'SS/NSS', default:5 }, RST:{ label:'RESET', default:14 }, DIO0:{ label:'DIO0', default:2 } },
+      includes:['<SPI.h>','<LoRa.h>'],
+      setup:'  LoRa.setPins(LORA_SS, LORA_RST, LORA_DIO0);\n  if (!LoRa.begin(915E6)) { Serial.println("LoRa failed"); while(1); }\n  LoRa.setSyncWord(0x12);',
+      loop:'',
+      payloadKeys:[] },
+
+    { id:'oled_ssd1306', name:'OLED SSD1306', category:'Display', icon:'🖥️', color:'#a78bfa', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<Adafruit_GFX.h>','<Adafruit_SSD1306.h>'],
+      setup:'  display.begin(SSD1306_SWITCHCAPVCC, 0x3C);\n  display.clearDisplay();\n  display.setTextColor(WHITE);\n  display.display();',
+      loop:'  display.clearDisplay();\n  display.setCursor(0,0);\n  display.println("IoT Guard");\n  display.display();',
+      payloadKeys:[] },
+
+    // ── Actuators ────────────────────────────────────────────────
+    { id:'relay_1ch', name:'1-Ch Relay', category:'Actuator', icon:'🔌', color:'#f97316', interface:'Digital',
+      pins:{ IN:{ label:'IN', default:26 } },
+      includes:[],
+      setup:'  pinMode(RELAY_PIN, OUTPUT);\n  digitalWrite(RELAY_PIN, HIGH);',
+      loop:'',
+      payloadKeys:['relay_state'] },
+
+    { id:'relay_4ch', name:'4-Ch Relay', category:'Actuator', icon:'🔌', color:'#ea580c', interface:'Digital',
+      pins:{ IN1:{ label:'IN1', default:25 }, IN2:{ label:'IN2', default:26 }, IN3:{ label:'IN3', default:27 }, IN4:{ label:'IN4', default:32 } },
+      includes:[],
+      setup:'  pinMode(R1,OUTPUT); pinMode(R2,OUTPUT); pinMode(R3,OUTPUT); pinMode(R4,OUTPUT);\n  digitalWrite(R1,HIGH); digitalWrite(R2,HIGH); digitalWrite(R3,HIGH); digitalWrite(R4,HIGH);',
+      loop:'',
+      payloadKeys:['relay1','relay2','relay3','relay4'] },
+
+    { id:'servo_sg90', name:'Servo SG90', category:'Actuator', icon:'⚙️', color:'#0ea5e9', interface:'PWM',
+      pins:{ SIGNAL:{ label:'Signal', default:13 } },
+      includes:['<ESP32Servo.h>'],
+      setup:'  servo.attach(SERVO_PIN);',
+      loop:'  servo.write(90); // 0-180 degrees',
+      payloadKeys:['servo_angle'] },
+
+    { id:'dc_motor', name:'DC Motor+Driver', category:'Actuator', icon:'🔧', color:'#64748b', interface:'PWM',
+      pins:{ IN1:{ label:'IN1', default:25 }, IN2:{ label:'IN2', default:26 }, ENA:{ label:'ENA/PWM', default:33 } },
+      includes:[],
+      setup:'  pinMode(MOTOR_IN1, OUTPUT);\n  pinMode(MOTOR_IN2, OUTPUT);\n  ledcSetup(0, 5000, 8);\n  ledcAttachPin(MOTOR_ENA, 0);',
+      loop:'',
+      payloadKeys:[] },
+
+    { id:'l298n', name:'L298N Driver', category:'Actuator', icon:'⚡', color:'#475569', interface:'PWM',
+      pins:{ IN1:{ label:'IN1', default:25 }, IN2:{ label:'IN2', default:26 }, ENA:{ label:'ENA', default:33 }, IN3:{ label:'IN3', default:27 }, IN4:{ label:'IN4', default:32 }, ENB:{ label:'ENB', default:34 } },
+      includes:[],
+      setup:'  pinMode(L298_IN1, OUTPUT); pinMode(L298_IN2, OUTPUT);\n  pinMode(L298_IN3, OUTPUT); pinMode(L298_IN4, OUTPUT);',
+      loop:'',
+      payloadKeys:[] },
+
+    { id:'buzzer', name:'Buzzer', category:'Actuator', icon:'🔔', color:'#ec4899', interface:'Digital',
+      pins:{ SIGNAL:{ label:'Signal PIN', default:25 } },
+      includes:[],
+      setup:'  pinMode(BUZZER_PIN, OUTPUT);',
+      loop:'',
+      payloadKeys:[] },
+
+    { id:'led', name:'LED', category:'Output', icon:'💎', color:'#facc15', interface:'Digital',
+      pins:{ ANODE:{ label:'Anode (via 220Ω)', default:2 } },
+      includes:[],
+      setup:'  pinMode(LED_PIN, OUTPUT);',
+      loop:'  digitalWrite(LED_PIN, HIGH);',
+      payloadKeys:[] },
+
+    { id:'status_leds', name:'Status LEDs', category:'Output', icon:'🚦', color:'#22d3ee', interface:'Digital',
+      pins:{ RED:{ label:'Red LED', default:25 }, GREEN:{ label:'Green LED', default:26 }, BLUE:{ label:'Blue LED', default:27 } },
+      includes:[],
+      setup:'  pinMode(LED_RED, OUTPUT);\n  pinMode(LED_GREEN, OUTPUT);\n  pinMode(LED_BLUE, OUTPUT);',
+      loop:'',
+      payloadKeys:[] },
+
+    { id:'solenoid', name:'Solenoid Lock', category:'Actuator', icon:'🔒', color:'#b45309', interface:'Digital',
+      pins:{ CTRL:{ label:'MOSFET Gate', default:26 } },
+      includes:[],
+      setup:'  pinMode(SOLENOID_PIN, OUTPUT);\n  digitalWrite(SOLENOID_PIN, LOW);',
+      loop:'',
+      payloadKeys:['lock_state'] },
+
+    { id:'water_pump', name:'Water Pump', category:'Actuator', icon:'💧', color:'#0284c7', interface:'Digital',
+      pins:{ CTRL:{ label:'MOSFET Gate', default:27 } },
+      includes:[],
+      setup:'  pinMode(PUMP_PIN, OUTPUT);\n  digitalWrite(PUMP_PIN, LOW);',
+      loop:'',
+      payloadKeys:['pump_state'] },
+
+    // ── Other ─────────────────────────────────────────────────────
+    { id:'ds3231', name:'DS3231 RTC', category:'Time', icon:'🕐', color:'#6366f1', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<RTClib.h>'],
+      setup:'  if (!rtc.begin()) { Serial.println("RTC not found"); }\n  if (rtc.lostPower()) { rtc.adjust(DateTime(F(__DATE__), F(__TIME__))); }',
+      loop:'  DateTime now = rtc.now();\n  String timestamp = String(now.year()) + "-" + String(now.month()) + "-" + String(now.day());',
+      payloadKeys:['rtc_timestamp'] },
+
+    { id:'ina219', name:'Battery (INA219)', category:'Power', icon:'🔋', color:'#34d399', interface:'I2C',
+      pins:{ SDA:{ label:'SDA', default:21 }, SCL:{ label:'SCL', default:22 } },
+      includes:['<Wire.h>','<Adafruit_INA219.h>'],
+      setup:'  ina219.begin();',
+      loop:'  float busVoltage = ina219.getBusVoltage_V();\n  float current_mA = ina219.getCurrent_mA();\n  float power_mW = ina219.getPower_mW();',
+      payloadKeys:['voltage','current_mA','power_mW'] },
+];
+
+// Backward compatibility alias
+const SENSOR_LIBRARY = COMPONENT_LIBRARY;
+
+// State
+let selectedSensors = {};
+let componentSearchQuery = '';
+const INITIAL_VISIBLE_COUNT = 10; // Show first N, rest via search
+
+function renderSensorLibrary() {
+    const grid = document.getElementById('sensor-library-grid');
+    if (!grid) return;
+
+    const query = componentSearchQuery.trim().toLowerCase();
+    let list = COMPONENT_LIBRARY;
+
+    if (query) {
+        list = COMPONENT_LIBRARY.filter(c =>
+            c.name.toLowerCase().includes(query) ||
+            c.category.toLowerCase().includes(query) ||
+            c.interface.toLowerCase().includes(query)
+        );
+    } else {
+        list = COMPONENT_LIBRARY.slice(0, INITIAL_VISIBLE_COUNT);
+    }
+
+    if (list.length === 0) {
+        grid.innerHTML = `
+            <div style="grid-column:1/-1;text-align:center;padding:28px 10px;">
+                <div style="font-size:2rem;margin-bottom:10px;opacity:0.5;">🔍</div>
+                <div style="font-size:0.85rem;color:var(--text-muted);font-weight:600;">Not Found in Library</div>
+                <div style="font-size:0.72rem;color:var(--text-muted);margin-top:4px;opacity:0.6;">Try a different search term or add as Custom Component below.</div>
+            </div>`;
+        return;
+    }
+
+    grid.innerHTML = list.map(s => {
+        const isSelected = !!selectedSensors[s.id];
+        const rgb = hexToRgb(s.color);
+        return `<div id="slib-${s.id}" onclick="toggleSensor('${s.id}')"
+            style="cursor:pointer;padding:10px 12px;border-radius:12px;border:1.5px solid ${isSelected ? s.color : 'var(--border)'};background:${isSelected ? `rgba(${rgb},0.12)` : 'rgba(255,255,255,0.02)'};transition:all 0.2s;position:relative;"
+            onmouseenter="this.style.borderColor='${s.color}';this.style.background='rgba(${rgb},0.1)'"
+            onmouseleave="if(!${isSelected}){this.style.borderColor='var(--border)';this.style.background='rgba(255,255,255,0.02)'}"
+        >
+            ${isSelected ? `<div style="position:absolute;top:6px;right:8px;width:16px;height:16px;border-radius:50%;background:${s.color};display:flex;align-items:center;justify-content:center;font-size:0.55rem;color:#000;font-weight:900;">✓</div>` : ''}
+            <div style="font-size:1.3rem;margin-bottom:4px;">${s.icon}</div>
+            <div style="font-size:0.78rem;font-weight:600;color:#fff;line-height:1.3;">${s.name}</div>
+            <div style="font-size:0.65rem;color:${s.color};margin-top:2px;text-transform:uppercase;letter-spacing:0.3px;">${s.interface} · ${s.category}</div>
+        </div>`;
+    }).join('');
+
+    // Hint when not searching
+    if (!query) {
+        const remaining = COMPONENT_LIBRARY.length - INITIAL_VISIBLE_COUNT;
+        grid.innerHTML += `
+            <div style="grid-column:1/-1;text-align:center;padding:8px 4px;">
+                <div style="font-size:0.7rem;color:var(--text-muted);opacity:0.7;">
+                    <i class="fas fa-search" style="margin-right:4px;"></i>
+                    Search to find ${remaining} more components…
+                </div>
+            </div>`;
+    }
+}
+
+// Handle search input
+function onComponentSearch(value) {
+    componentSearchQuery = value;
+    renderSensorLibrary();
+}
+window.onComponentSearch = onComponentSearch;
+
+// ── Custom Component ──────────────────────────────────────────────────
+let customComponents = [];
+
+function addCustomComponent() {
+    const name  = document.getElementById('custom-comp-name').value.trim();
+    const pinsRaw = document.getElementById('custom-comp-pins').value.trim();
+    const icon  = document.getElementById('custom-comp-icon').value.trim() || '🔧';
+
+    if (!name) return showNotification('Component name is required', 'error');
+    if (!pinsRaw) return showNotification('Add at least one pin (e.g. DATA:4)', 'error');
+
+    // Parse "PINNAME:default, PINNAME2:default2"
+    const pins = {};
+    pinsRaw.split(',').forEach(part => {
+        const [k, v] = part.trim().split(':');
+        if (k) pins[k.trim().toUpperCase()] = { label: k.trim(), default: parseInt(v) || 0 };
+    });
+
+    const id = 'custom_' + Date.now();
+    const comp = {
+        id, name, category:'Custom', icon, color:'#a78bfa',
+        interface:'Custom', pins, includes:[], setup:'', loop:'',
+        payloadKeys: Object.keys(pins).map(k => k.toLowerCase())
+    };
+
+    COMPONENT_LIBRARY.push(comp);
+    customComponents.push(comp);
+
+    // Auto-select it
+    const pinVals = {};
+    Object.entries(pins).forEach(([k, cfg]) => { pinVals[k] = cfg.default; });
+    selectedSensors[id] = pinVals;
+
+    // Clear inputs
+    document.getElementById('custom-comp-name').value = '';
+    document.getElementById('custom-comp-pins').value = '';
+    document.getElementById('custom-comp-icon').value = '';
+
+    renderSensorLibrary();
+    renderPinConfig();
+    updateSelectedCount();
+    showNotification(`"${name}" added to library & selected!`, 'success');
+}
+window.addCustomComponent = addCustomComponent;
+
+
     {
         id: 'sx1276',
         name: 'SX1276 LoRa',
@@ -1095,11 +1438,16 @@ function buildFirmwareCode(board, hwid, secret, ssid, pass, apiUrl, interval) {
 
     // Collect global var declarations
     const globals = [];
+    if (activeSensors.find(s => s.id === 'dht11')) globals.push('DHT dht11(DHT11_DATA, DHT11);');
+    if (activeSensors.find(s => s.id === 'dht22')) globals.push('DHT dht22(DHT22_DATA, DHT22);');
+    if (activeSensors.find(s => s.id === 'ds18b20')) globals.push('OneWire oneWire(DS18B20_DATA);\nDallasTemperature sensors(&oneWire);');
     if (activeSensors.find(s => s.id === 'bme280')) globals.push('Adafruit_BME280 bme;');
     if (activeSensors.find(s => s.id === 'bh1750')) globals.push('BH1750 lightMeter;');
     if (activeSensors.find(s => s.id === 'pms5003')) globals.push('PMS pms(Serial2);');
     if (activeSensors.find(s => s.id === 'neo6m')) globals.push('TinyGPSPlus gps;\nHardwareSerial gpsSerial(2);');
+    if (activeSensors.find(s => s.id === 'rc522')) globals.push('MFRC522 mfrc522(RC522_SS, RC522_RST);');
     if (activeSensors.find(s => s.id === 'oled_ssd1306')) globals.push('Adafruit_SSD1306 display(128, 64, &Wire, -1);');
+    if (activeSensors.find(s => s.id === 'servo_sg90')) globals.push('Servo servo;');
     if (activeSensors.find(s => s.id === 'ds3231')) globals.push('RTC_DS3231 rtc;');
     if (activeSensors.find(s => s.id === 'ina219')) globals.push('Adafruit_INA219 ina219;');
 
