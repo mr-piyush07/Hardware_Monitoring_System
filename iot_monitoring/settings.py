@@ -86,46 +86,20 @@ WSGI_APPLICATION = "iot_monitoring.wsgi.application"
 ASGI_APPLICATION = "iot_monitoring.asgi.application"
 
 # ─────────────────────────────────────────────────────────────
-# Database Configuration (Render Managed PostgreSQL & Multi-DB Ready)
-# Priority: DATABASE_URL (Render) > DB_ENGINE=postgresql > SQLite (local)
+# Database Configuration (MongoDB Atlas via Djongo)
 # ─────────────────────────────────────────────────────────────
-DATABASE_URL = os.getenv("DATABASE_URL", "")
-DB_ENGINE = os.getenv("DB_ENGINE", "sqlite")
-
-if DATABASE_URL and HAS_DJ_DATABASE_URL:
-    # ✅ Render Managed PostgreSQL via DATABASE_URL connection string
-    DATABASES = {
-        "default": dj_database_url.config(
-            default=DATABASE_URL,
-            conn_max_age=600,
-            conn_health_checks=True,
-        )
-    }
-elif DB_ENGINE == "postgresql":
-    # Manual PostgreSQL config via individual env vars
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": os.getenv("POSTGRES_DB", "iot_dashboard_gen7"),
-            "USER": os.getenv("POSTGRES_USER", "iot_dashboard_gen7_user"),
-            "PASSWORD": os.getenv("POSTGRES_PASSWORD", "J4icgWEaGCcpbjor9JnZi9lQrCKLAFig"),
-            "HOST": os.getenv("POSTGRES_HOST", "localhost"),
-            "PORT": os.getenv("POSTGRES_PORT", "5432"),
-        }
-    }
-else:
-    # 🖥️ Local development SQLite fallback
-    SQLITE_PATH = os.getenv("SQLITE_PATH", str(BASE_DIR / "iot_data.db"))
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.sqlite3",
-            "NAME": SQLITE_PATH,
-        }
-    }
-
-# Optional MongoDB Connection configuration (for TelemetryRepository when DB_ENGINE == "mongodb")
 MONGO_URI = os.getenv("MONGO_URI", "mongodb://localhost:27017/")
 MONGO_DB_NAME = os.getenv("MONGO_DB_NAME", "iot_monitoring")
+
+DATABASES = {
+    "default": {
+        "ENGINE": "djongo",
+        "NAME": MONGO_DB_NAME,
+        "CLIENT": {
+            "host": MONGO_URI,
+        }
+    }
+}
 
 # CORS Settings - Always allow all in production to prevent "backend not connect" errors
 CORS_ALLOW_ALL_ORIGINS = True

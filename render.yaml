@@ -19,5 +19,5 @@ services:
         value: "True"
       - key: PYTHON_VERSION
         value: "3.11.0"
-      - key: DATABASE_URL
-        value: "postgresql://iot_dashboard_gen7_user:J4icgWEaGCcpbjor9JnZi9lQrCKLAFig@dpg-da9ca6u7bikc738tj1rg-a/iot_dashboard_gen7"
+      - key: MONGO_URI
+        value: "mongodb+srv://<db_username>:<db_password>@cluster0.kvqh9ci.mongodb.net/?appName=Cluster0"
