@@ -5,7 +5,7 @@ djongo
 dj-database-url
 gunicorn
 whitenoise
-pymongo
+pymongo<4.0
 PyJWT
 bcrypt==4.0.1
 aiomqtt
