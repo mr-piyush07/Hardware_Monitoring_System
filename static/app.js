@@ -7,13 +7,12 @@ const getApiBase = () => {
             return val.replace(/\/+$/, '');
         }
     }
-    const hostname = window.location.hostname;
-    // 2. If running locally, default to http://localhost:8000
-    if (!hostname || hostname === 'localhost' || hostname === '127.0.0.1') {
-        return 'http://localhost:8000';
+    // 2. If running in browser with HTTP/HTTPS origin, use the exact current origin (matches current port e.g. 8080, 8000)
+    if (window.location && window.location.origin && window.location.origin.startsWith('http')) {
+        return window.location.origin;
     }
-    // 3. In production (Render, custom domain, etc.), use the live origin URL
-    return window.location.origin;
+    // 3. Fallback for non-http or file:// protocol
+    return 'http://localhost:8080';
 };
 
 const API_BASE = getApiBase();
@@ -42,6 +41,12 @@ let currentToken = localStorage.getItem('iot_token');
 let currentRole = localStorage.getItem('iot_role');
 let isLoginMode = true;
 let activeHwid = null;
+let currentActiveDevice = null;
+let cachedDevices = [];
+let activeSensorFilter = 'all';
+let selectedRegComponents = [];
+let selectedEditComponents = [];
+let editingDeviceId = null;
 let dashboardInterval = null;
 let charts = {};
 const USER_CACHE = {};
@@ -554,37 +559,69 @@ async function loadDevices() {
             headers: { 'Authorization': `Bearer ${currentToken}` }
         });
         const devices = await res.json();
+        cachedDevices = devices;
         renderDevices(devices);
     } catch (e) { showNotification("Failed to load devices", "error"); }
 }
 
 function renderDevices(devices) {
+    cachedDevices = devices;
     const container = document.getElementById('devices-container');
     container.innerHTML = devices.length ? '' : '<p class="text-muted">No devices found.</p>';
     devices.forEach(dev => {
         const card = document.createElement('div');
         card.className = 'integration-card';
         const isAdmin = currentRole === 'admin';
+        const compList = dev.components || [];
+        const compTagsHtml = compList.length > 0 ? `
+            <div style="margin-bottom: 15px;">
+                <p style="font-size: 0.68rem; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 6px;">
+                    <i class="fas fa-microchip" style="color: var(--accent);"></i> Wired Sensors (${compList.length})
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 5px;">
+                    ${compList.map(c => `<span class="device-comp-tag">${c.icon || '🔌'} ${c.name}</span>`).join('')}
+                </div>
+            </div>` : `
+            <div style="margin-bottom: 15px;">
+                <p style="font-size: 0.72rem; color: var(--text-muted); font-style: italic;">
+                    No components selected. <a href="javascript:void(0)" onclick="openEditComponentsModal(${dev.id})" style="color: var(--accent); text-decoration: underline;">Configure</a>
+                </p>
+            </div>`;
+
         card.innerHTML = `
             <div class="card-header" style="display:flex;justify-content:space-between;align-items:flex-start;">
                 <div>
                     <h3>${dev.name}</h3>
                     <span class="badge badge-low">${dev.device_type.replace('_', ' ')}</span>
                 </div>
-                ${isAdmin ? `
-                <button class="device-delete-btn" title="Delete Device" onclick="deleteDevice(${dev.id}, '${dev.name}')"
-                    style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;
-                    border-radius:8px;padding:6px 10px;cursor:pointer;transition:all 0.2s;font-size:0.85rem;
-                    display:flex;align-items:center;gap:5px;">
-                    <i class="fas fa-trash-alt"></i>
-                </button>` : ''}
+                <div style="display: flex; gap: 8px;">
+                    <button class="accent-btn" title="Configure Attached Components" onclick="openEditComponentsModal(${dev.id})"
+                        style="padding: 6px 10px; font-size: 0.8rem; display: flex; align-items: center; gap: 4px;">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    ${isAdmin ? `
+                    <button class="device-delete-btn" title="Delete Device" onclick="deleteDevice(${dev.id}, '${dev.name}')"
+                        style="background:rgba(239,68,68,0.12);border:1px solid rgba(239,68,68,0.35);color:#ef4444;
+                        border-radius:8px;padding:6px 10px;cursor:pointer;transition:all 0.2s;font-size:0.85rem;
+                        display:flex;align-items:center;gap:5px;">
+                        <i class="fas fa-trash-alt"></i>
+                    </button>` : ''}
+                </div>
             </div>
-            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px;">HWID: ${dev.hardware_id}</p>
-            <div style="background: rgba(0,0,0,0.3); padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                <p style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 5px;">SECRET TOKEN</p>
-                <code style="color: var(--accent); font-size: 0.9rem;">${dev.secret}</code>
+            <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 15px;">HWID: ${dev.hardware_id}</p>
+            ${compTagsHtml}
+            <div style="background: rgba(0,0,0,0.3); padding: 12px; border-radius: 12px; margin-bottom: 15px;">
+                <p style="font-size: 0.65rem; color: var(--text-muted); margin-bottom: 4px;">SECRET TOKEN</p>
+                <code style="color: var(--accent); font-size: 0.85rem;">${dev.secret}</code>
             </div>
-            <button class="primary-btn" style="width:100%; justify-content: center;" onclick="openDeviceDetail('${dev.hardware_id}', '${dev.name}')">View Intelligent Data</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <button class="accent-btn" style="justify-content: center; font-size: 0.8rem;" onclick="openEditComponentsModal(${dev.id})">
+                    <i class="fas fa-microchip" style="margin-right: 5px;"></i> Sensors
+                </button>
+                <button class="primary-btn" style="justify-content: center; font-size: 0.8rem;" onclick="openDeviceDetail('${dev.hardware_id}', '${dev.name}')">
+                    <i class="fas fa-chart-line" style="margin-right: 5px;"></i> Analytics
+                </button>
+            </div>
         `;
         // Hover effect for delete button
         const delBtn = card.querySelector('.device-delete-btn');
@@ -705,12 +742,36 @@ function goToFirmwareLab(hwid, secret, deviceType = null) {
 window.goToFirmwareLab = goToFirmwareLab;
 
 // Device Detail View
+// Device Detail View
 async function openDeviceDetail(hwid, name) {
     activeHwid = hwid;
+    currentActiveDevice = (cachedDevices || []).find(d => d.hardware_id === hwid) || { hardware_id: hwid, name: name, components: [] };
+    activeSensorFilter = 'all';
+
+    // Clear previous charts and destroy instances
+    const container = document.getElementById('charts-container');
+    if (container) container.innerHTML = '';
+    Object.keys(charts).forEach(k => {
+        if (k.startsWith('detail-chart-')) {
+            try { charts[k].destroy(); } catch (e) {}
+            delete charts[k];
+        }
+    });
+
     switchTab('details');
     document.getElementById('device-selection-prompt').classList.add('hidden');
     document.getElementById('details-content').classList.remove('hidden');
-    document.getElementById('tab-title').innerText = `Device: ${name}`;
+    document.getElementById('tab-title').innerText = `Broadcaster: ${name}`;
+
+    // Update Node Config identities
+    const mgmtHwid = document.getElementById('mgmt-hwid');
+    const mgmtName = document.getElementById('mgmt-name');
+    if (mgmtHwid) mgmtHwid.value = hwid;
+    if (mgmtName) mgmtName.value = name;
+    updateMgmtComponentsList(currentActiveDevice.components);
+
+    // Setup filter toolbar
+    renderSensorFilterToolbar(currentActiveDevice);
 
     // Reset and start update interval
     if (dashboardInterval) clearInterval(dashboardInterval);
@@ -749,58 +810,474 @@ function renderPacketConsole(telemetry) {
     consoleView.scrollTop = consoleView.scrollHeight;
 }
 
+function updateMgmtComponentsList(components) {
+    const listEl = document.getElementById('mgmt-components-list');
+    if (!listEl) return;
+    const comps = components || [];
+    if (!comps.length) {
+        listEl.innerHTML = '<span class="text-muted" style="font-size: 0.85rem; font-style: italic;">No components attached yet. Click "Edit Components" to add sensors.</span>';
+        return;
+    }
+    listEl.innerHTML = comps.map(c => `
+        <div style="background: rgba(0, 229, 255, 0.1); border: 1px solid rgba(0, 229, 255, 0.3); border-radius: 8px; padding: 6px 12px; display: inline-flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.1rem;">${c.icon || '🔌'}</span>
+            <div>
+                <div style="font-weight: 600; font-size: 0.8rem; color: #fff;">${c.name}</div>
+                <div style="font-size: 0.65rem; color: var(--text-muted); font-family: 'Fira Code', monospace;">
+                    ${(c.keys || []).join(', ') || 'data'}
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function renderSensorFilterToolbar(device) {
+    const toolbar = document.getElementById('sensor-filter-toolbar');
+    const pillsContainer = document.getElementById('sensor-filter-pills');
+    if (!toolbar || !pillsContainer) return;
+
+    toolbar.style.display = 'flex';
+    const comps = (device && device.components) || [];
+
+    let pillsHtml = `
+        <button class="sensor-filter-btn ${activeSensorFilter === 'all' ? 'active' : ''}" onclick="setSensorFilter('all', this)">
+            <i class="fas fa-th-large"></i> All Sensors (${comps.length || 'Auto'})
+        </button>
+    `;
+
+    comps.forEach(c => {
+        pillsHtml += `
+            <button class="sensor-filter-btn ${activeSensorFilter === c.id ? 'active' : ''}" onclick="setSensorFilter('${c.id}', this)">
+                <span>${c.icon || '🔌'}</span> ${c.name}
+            </button>
+        `;
+    });
+
+    pillsContainer.innerHTML = pillsHtml;
+}
+
+function setSensorFilter(filterKey, btn) {
+    activeSensorFilter = filterKey;
+    document.querySelectorAll('.sensor-filter-btn').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+
+    // Filter displayed cards in charts-container
+    const cards = document.querySelectorAll('.sensor-chart-card');
+    cards.forEach(card => {
+        const compId = card.getAttribute('data-component-id');
+        const key = card.getAttribute('data-sensor-key');
+        if (filterKey === 'all' || compId === filterKey || key === filterKey) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+window.setSensorFilter = setSensorFilter;
+
+// Sensor Visual Identity Lookup
+function getSensorTheme(key, comp = null) {
+    const k = String(key).toLowerCase();
+    let theme = {
+        label: key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        unit: '',
+        icon: 'fas fa-chart-area',
+        emoji: '📊',
+        color: '#00e5ff',
+        bg: 'rgba(0, 229, 255, 0.12)',
+        border: 'rgba(0, 229, 255, 0.35)',
+        glow: 'rgba(0, 229, 255, 0.25)'
+    };
+
+    if (k.includes('temp')) {
+        theme = { label: 'Temperature', unit: '°C', icon: 'fas fa-temperature-high', emoji: '🌡️', color: '#ff5252', bg: 'rgba(255, 82, 82, 0.14)', border: 'rgba(255, 82, 82, 0.35)', glow: 'rgba(255, 82, 82, 0.3)' };
+    } else if (k.includes('hum')) {
+        theme = { label: 'Humidity', unit: '%', icon: 'fas fa-tint', emoji: '💧', color: '#00e5ff', bg: 'rgba(0, 229, 255, 0.14)', border: 'rgba(0, 229, 255, 0.35)', glow: 'rgba(0, 229, 255, 0.3)' };
+    } else if (k.includes('press') || k.includes('baro')) {
+        theme = { label: 'Atmospheric Pressure', unit: 'hPa', icon: 'fas fa-tachometer-alt', emoji: '🌤️', color: '#818cf8', bg: 'rgba(129, 140, 248, 0.14)', border: 'rgba(129, 140, 248, 0.35)', glow: 'rgba(129, 140, 248, 0.3)' };
+    } else if (k.includes('dist')) {
+        theme = { label: 'Ultrasonic Distance', unit: 'cm', icon: 'fas fa-ruler-horizontal', emoji: '📡', color: '#a855f7', bg: 'rgba(168, 85, 247, 0.14)', border: 'rgba(168, 85, 247, 0.35)', glow: 'rgba(168, 85, 247, 0.3)' };
+    } else if (k.includes('soil')) {
+        theme = { label: 'Soil Moisture', unit: '%', icon: 'fas fa-seedling', emoji: '🌱', color: '#10b981', bg: 'rgba(16, 185, 129, 0.14)', border: 'rgba(16, 185, 129, 0.35)', glow: 'rgba(16, 185, 129, 0.3)' };
+    } else if (k.includes('gas') || k.includes('smoke')) {
+        theme = { label: 'Gas Concentration', unit: 'ppm', icon: 'fas fa-smog', emoji: '💨', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.14)', border: 'rgba(245, 158, 11, 0.35)', glow: 'rgba(245, 158, 11, 0.3)' };
+    } else if (k.includes('air') || k.includes('co2')) {
+        theme = { label: 'Air Quality Index', unit: 'ppm', icon: 'fas fa-wind', emoji: '🌫️', color: '#fb923c', bg: 'rgba(251, 146, 60, 0.14)', border: 'rgba(251, 146, 60, 0.35)', glow: 'rgba(251, 146, 60, 0.3)' };
+    } else if (k.includes('pm2') || k.includes('pm10')) {
+        theme = { label: 'Particulate Matter', unit: 'µg/m³', icon: 'fas fa-lungs', emoji: '💨', color: '#f43f5e', bg: 'rgba(244, 63, 94, 0.14)', border: 'rgba(244, 63, 94, 0.35)', glow: 'rgba(244, 63, 94, 0.3)' };
+    } else if (k.includes('lux') || k.includes('light')) {
+        theme = { label: 'Light Level', unit: 'lux', icon: 'fas fa-sun', emoji: '☀️', color: '#eab308', bg: 'rgba(234, 179, 8, 0.14)', border: 'rgba(234, 179, 8, 0.35)', glow: 'rgba(234, 179, 8, 0.3)' };
+    } else if (k.includes('volt') || k.includes('vbatt') || k.includes('battery')) {
+        theme = { label: 'Voltage', unit: 'V', icon: 'fas fa-battery-three-quarters', emoji: '🔋', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.14)', border: 'rgba(34, 197, 94, 0.35)', glow: 'rgba(34, 197, 94, 0.3)' };
+    } else if (k.includes('current')) {
+        theme = { label: 'Current Draw', unit: 'mA', icon: 'fas fa-bolt', emoji: '⚡', color: '#f97316', bg: 'rgba(249, 115, 22, 0.14)', border: 'rgba(249, 115, 22, 0.35)', glow: 'rgba(249, 115, 22, 0.3)' };
+    } else if (k.includes('power')) {
+        theme = { label: 'Power Consumption', unit: 'mW', icon: 'fas fa-plug', emoji: '🔌', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.14)', border: 'rgba(6, 182, 212, 0.35)', glow: 'rgba(6, 182, 212, 0.3)' };
+    } else if (k.includes('rain')) {
+        theme = { label: 'Rain Status', unit: '%', icon: 'fas fa-cloud-showers-heavy', emoji: '🌧️', color: '#38bdf8', bg: 'rgba(56, 189, 248, 0.14)', border: 'rgba(56, 189, 248, 0.35)', glow: 'rgba(56, 189, 248, 0.3)' };
+    } else if (k.includes('flame') || k.includes('fire')) {
+        theme = { label: 'Flame Level', unit: 'index', icon: 'fas fa-fire', emoji: '🔥', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.14)', border: 'rgba(239, 68, 68, 0.35)', glow: 'rgba(239, 68, 68, 0.3)' };
+    } else if (k.includes('motion')) {
+        theme = { label: 'Motion Activity', unit: 'state', icon: 'fas fa-walking', emoji: '👁️', color: '#ec4899', bg: 'rgba(236, 72, 153, 0.14)', border: 'rgba(236, 72, 153, 0.35)', glow: 'rgba(236, 72, 153, 0.3)' };
+    } else if (k.includes('accel')) {
+        theme = { label: 'Acceleration ' + k.slice(-1).toUpperCase(), unit: 'g', icon: 'fas fa-tachometer-alt', emoji: '⚡', color: '#06b6d4', bg: 'rgba(6, 182, 212, 0.14)', border: 'rgba(6, 182, 212, 0.35)', glow: 'rgba(6, 182, 212, 0.3)' };
+    }
+
+    if (comp) {
+        if (comp.name) theme.componentName = comp.name;
+        if (comp.units && comp.units[key]) theme.unit = comp.units[key];
+        else if (comp.unit) theme.unit = comp.unit;
+        if (comp.icon) theme.emoji = comp.icon;
+        if (comp.color) theme.color = comp.color;
+    }
+    return theme;
+}
+
+// Next-Gen Individual Sensor Visualization Engine
 function renderDetailCharts(telemetry) {
-    if (!telemetry.length) return;
-    const sortedData = [...telemetry].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-    const newestPoint = sortedData[sortedData.length - 1].data;
-    const sensors = Object.keys(newestPoint);
     const container = document.getElementById('charts-container');
+    if (!container) return;
 
-    sensors.forEach(key => {
+    if (!telemetry || !telemetry.length) {
+        container.innerHTML = `
+            <div class="matrix-card" style="text-align: center; padding: 50px;">
+                <i class="fas fa-satellite-dish" style="font-size: 2.5rem; color: var(--accent); margin-bottom: 15px; animation: pulseDotAnim 2s infinite;"></i>
+                <h3>Awaiting Telemetry Broadcast</h3>
+                <p style="color: var(--text-muted); margin-top: 8px;">Hardware node connected. Listening for sensor packets on HWID: <code>${activeHwid}</code>...</p>
+            </div>`;
+        return;
+    }
+
+    const sortedData = [...telemetry].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const IGNORED_KEYS = new Set([
+        'hwid', 'hardware_id', 'node_id', 'node', 'device_id', 'secret',
+        'timestamp', 'time', 'created_at', 'id', 'user_id', 'status',
+        'registered', 'device_type', 'token'
+    ]);
+
+    // Discover all data keys present across the recent telemetry window
+    const dataKeysSet = new Set();
+    sortedData.forEach(item => {
+        if (item.data && typeof item.data === 'object') {
+            Object.keys(item.data).forEach(k => {
+                if (!IGNORED_KEYS.has(k.toLowerCase()) && item.data[k] !== undefined && item.data[k] !== null) {
+                    dataKeysSet.add(k);
+                }
+            });
+        }
+    });
+
+    const configuredComps = (currentActiveDevice && currentActiveDevice.components) || [];
+    
+    // Map keys to their components
+    const keyToCompMap = {};
+    configuredComps.forEach(comp => {
+        (comp.keys || []).forEach(k => {
+            keyToCompMap[k] = comp;
+        });
+    });
+
+    // Build the ordered list of sensor keys to render
+    const orderedSensorKeys = [];
+    const processedKeys = new Set();
+
+    // 1. First add keys defined by configured components
+    configuredComps.forEach(comp => {
+        (comp.keys || []).forEach(k => {
+            if (!processedKeys.has(k)) {
+                orderedSensorKeys.push({ key: k, comp: comp, fromConfig: true });
+                processedKeys.add(k);
+            }
+        });
+    });
+
+    // 2. Then add any incoming keys that weren't in configured components
+    dataKeysSet.forEach(k => {
+        if (!processedKeys.has(k)) {
+            orderedSensorKeys.push({ key: k, comp: null, fromConfig: false });
+            processedKeys.add(k);
+        }
+    });
+
+    // If no sensor keys were found at all
+    if (orderedSensorKeys.length === 0) {
+        container.innerHTML = `
+            <div class="matrix-card" style="text-align: center; padding: 40px;">
+                <p style="color: var(--text-muted);">No numeric sensor metrics detected in the packet stream.</p>
+            </div>`;
+        return;
+    }
+
+    // Render / update each individual sensor card
+    orderedSensorKeys.forEach(({ key, comp, fromConfig }) => {
         const cid = `detail-chart-${key}`;
-        let chartWrapper = document.getElementById(`${cid}-wrapper`);
-        if (!chartWrapper) {
-            chartWrapper = document.createElement('div');
-            chartWrapper.id = `${cid}-wrapper`;
-            chartWrapper.style.height = '200px';
-            chartWrapper.innerHTML = `<h4 style="font-size: 0.8rem; margin-bottom: 10px;">${key.toUpperCase()} TRAJECTORY</h4>
-                                      <canvas id="${cid}"></canvas>`;
-            container.appendChild(chartWrapper);
+        const cardId = `${cid}-card`;
+        const compId = comp ? comp.id : 'custom';
+        const theme = getSensorTheme(key, comp);
 
-            const ctx = document.getElementById(cid).getContext('2d');
+        // Filter by activeSensorFilter
+        const isVisible = (activeSensorFilter === 'all' || activeSensorFilter === compId || activeSensorFilter === key);
+
+        // Extract historical numeric points for this sensor
+        const samples = sortedData
+            .map(p => {
+                const val = p.data ? p.data[key] : null;
+                return {
+                    time: new Date(p.timestamp || (p.data && p.data.timestamp) || Date.now()),
+                    val: typeof val === 'boolean' ? (val ? 1 : 0) : Number(val)
+                };
+            })
+            .filter(s => s.val !== null && !isNaN(s.val));
+
+        let cardEl = document.getElementById(cardId);
+        if (!cardEl) {
+            cardEl = document.createElement('div');
+            cardEl.id = cardId;
+            cardEl.className = 'sensor-chart-card';
+            cardEl.setAttribute('data-component-id', compId);
+            cardEl.setAttribute('data-sensor-key', key);
+            cardEl.style.setProperty('--sensor-theme-color', theme.color);
+            cardEl.style.setProperty('--sensor-soft-bg', theme.bg);
+            cardEl.style.setProperty('--sensor-border-color', theme.border);
+            cardEl.style.setProperty('--sensor-glow-color', theme.glow);
+
+            cardEl.innerHTML = `
+                <div class="sensor-card-header">
+                    <div class="sensor-header-left">
+                        <div class="sensor-icon-box">
+                            <span style="font-size: 1.4rem;">${theme.emoji}</span>
+                        </div>
+                        <div class="sensor-title-group">
+                            <h3>${theme.componentName ? `${theme.componentName} • ${theme.label}` : theme.label}</h3>
+                            <div class="sensor-meta-badge">
+                                <i class="${theme.icon}" style="color: ${theme.color};"></i>
+                                <span>FIELD: ${key}</span>
+                                ${theme.unit ? `<span>• UNIT: ${theme.unit}</span>` : ''}
+                            </div>
+                        </div>
+                    </div>
+                    <div class="sensor-live-pulse" id="${cid}-status-badge">
+                        <div class="pulse-dot"></div>
+                        <span id="${cid}-status-text">LIVE STREAM</span>
+                    </div>
+                </div>
+
+                <div class="sensor-kpi-grid">
+                    <div class="sensor-kpi-item">
+                        <div class="sensor-kpi-label"><i class="fas fa-wave-square"></i> CURRENT READING</div>
+                        <div class="sensor-kpi-value" id="${cid}-kpi-current">
+                            -- <span class="sensor-kpi-unit">${theme.unit}</span>
+                        </div>
+                        <div class="sensor-kpi-sub" id="${cid}-kpi-trend">● Stable</div>
+                    </div>
+                    <div class="sensor-kpi-item">
+                        <div class="sensor-kpi-label"><i class="fas fa-arrow-down" style="color: #38bdf8;"></i> MINIMUM</div>
+                        <div class="sensor-kpi-value" id="${cid}-kpi-min">
+                            -- <span class="sensor-kpi-unit">${theme.unit}</span>
+                        </div>
+                        <div class="sensor-kpi-sub">Window Low</div>
+                    </div>
+                    <div class="sensor-kpi-item">
+                        <div class="sensor-kpi-label"><i class="fas fa-arrow-up" style="color: #ef4444;"></i> MAXIMUM</div>
+                        <div class="sensor-kpi-value" id="${cid}-kpi-max">
+                            -- <span class="sensor-kpi-unit">${theme.unit}</span>
+                        </div>
+                        <div class="sensor-kpi-sub">Window High</div>
+                    </div>
+                    <div class="sensor-kpi-item">
+                        <div class="sensor-kpi-label"><i class="fas fa-calculator" style="color: #a855f7;"></i> AVERAGE</div>
+                        <div class="sensor-kpi-value" id="${cid}-kpi-avg">
+                            -- <span class="sensor-kpi-unit">${theme.unit}</span>
+                        </div>
+                        <div class="sensor-kpi-sub" id="${cid}-kpi-samples">0 packets</div>
+                    </div>
+                </div>
+
+                <div class="sensor-canvas-wrapper">
+                    <canvas id="${cid}"></canvas>
+                </div>
+            `;
+            container.appendChild(cardEl);
+        }
+
+        // Apply visibility
+        cardEl.style.display = isVisible ? 'block' : 'none';
+
+        // If no samples available for this sensor yet
+        if (!samples.length) {
+            const currentEl = document.getElementById(`${cid}-kpi-current`);
+            if (currentEl) currentEl.innerHTML = `Awaiting data...`;
+            const statusEl = document.getElementById(`${cid}-status-badge`);
+            if (statusEl) {
+                statusEl.style.background = 'rgba(255, 255, 255, 0.05)';
+                statusEl.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+                statusEl.style.color = 'var(--text-muted)';
+                const dot = statusEl.querySelector('.pulse-dot');
+                if (dot) dot.style.background = '#64748b';
+                const txt = document.getElementById(`${cid}-status-text`);
+                if (txt) txt.innerText = 'NO PACKET YET';
+            }
+            return;
+        }
+
+        // Calculate KPIs
+        const recentSamples = samples.slice(-50);
+        const values = recentSamples.map(s => s.val);
+        const currentVal = values[values.length - 1];
+        const prevVal = values.length > 1 ? values[values.length - 2] : currentVal;
+        const diff = currentVal - prevVal;
+        const minVal = Math.min(...values);
+        const maxVal = Math.max(...values);
+        const avgVal = values.reduce((a, b) => a + b, 0) / values.length;
+
+        // Format values
+        const fmt = (v) => (Number.isInteger(v) ? v : v.toFixed(2));
+
+        // Update KPI displays
+        const curEl = document.getElementById(`${cid}-kpi-current`);
+        if (curEl) curEl.innerHTML = `${fmt(currentVal)} <span class="sensor-kpi-unit">${theme.unit}</span>`;
+
+        const minEl = document.getElementById(`${cid}-kpi-min`);
+        if (minEl) minEl.innerHTML = `${fmt(minVal)} <span class="sensor-kpi-unit">${theme.unit}</span>`;
+
+        const maxEl = document.getElementById(`${cid}-kpi-max`);
+        if (maxEl) maxEl.innerHTML = `${fmt(maxVal)} <span class="sensor-kpi-unit">${theme.unit}</span>`;
+
+        const avgEl = document.getElementById(`${cid}-kpi-avg`);
+        if (avgEl) avgEl.innerHTML = `${fmt(avgVal)} <span class="sensor-kpi-unit">${theme.unit}</span>`;
+
+        const trendEl = document.getElementById(`${cid}-kpi-trend`);
+        if (trendEl) {
+            if (Math.abs(diff) < 0.001) {
+                trendEl.innerHTML = `<span style="color: var(--text-muted)">● Steady</span>`;
+            } else if (diff > 0) {
+                trendEl.innerHTML = `<span style="color: #10b981"><i class="fas fa-caret-up"></i> +${fmt(diff)} ${theme.unit}</span>`;
+            } else {
+                trendEl.innerHTML = `<span style="color: #ef4444"><i class="fas fa-caret-down"></i> ${fmt(diff)} ${theme.unit}</span>`;
+            }
+        }
+
+        const samplesEl = document.getElementById(`${cid}-kpi-samples`);
+        if (samplesEl) samplesEl.innerText = `${values.length} recorded samples`;
+
+        // Create or update Chart.js instance
+        const canvas = document.getElementById(cid);
+        if (!canvas) return;
+
+        if (!charts[cid]) {
+            const ctx = canvas.getContext('2d');
+            const gradient = ctx.createLinearGradient(0, 0, 0, 240);
+            gradient.addColorStop(0, theme.bg.replace('0.14', '0.35'));
+            gradient.addColorStop(1, 'rgba(0, 0, 0, 0.0)');
+
             charts[cid] = new Chart(ctx, {
                 type: 'line',
                 data: {
                     labels: [],
                     datasets: [{
-                        label: key,
+                        label: theme.label,
                         data: [],
-                        borderColor: '#8b5cf6',
-                        backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                        borderColor: theme.color,
+                        borderWidth: 2.5,
+                        backgroundColor: gradient,
                         fill: true,
-                        tension: 0.3,
-                        pointRadius: 0
+                        tension: 0.35,
+                        pointRadius: values.length < 5 ? 3 : 0,
+                        pointHoverRadius: 6,
+                        pointHoverBackgroundColor: theme.color,
+                        pointHoverBorderColor: '#fff',
+                        pointHoverBorderWidth: 2
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
-                    scales: {
-                        x: { display: false },
-                        y: { grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#8e8e93' } }
+                    animation: { duration: 400 },
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
                     },
-                    plugins: { legend: { display: false } }
+                    scales: {
+                        x: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { family: 'Inter', size: 10 },
+                                maxTicksLimit: 7,
+                                maxRotation: 0
+                            },
+                            title: {
+                                display: true,
+                                text: 'Timeline (HH:mm:ss)',
+                                color: '#64748b',
+                                font: { size: 9, family: 'Inter' }
+                            }
+                        },
+                        y: {
+                            display: true,
+                            grid: {
+                                color: 'rgba(255, 255, 255, 0.05)',
+                                borderColor: 'rgba(255, 255, 255, 0.1)'
+                            },
+                            ticks: {
+                                color: '#94a3b8',
+                                font: { family: 'Inter', size: 10 },
+                                callback: function(val) {
+                                    return val + (theme.unit ? ' ' + theme.unit : '');
+                                }
+                            },
+                            title: {
+                                display: true,
+                                text: theme.unit ? `${theme.label} (${theme.unit})` : theme.label,
+                                color: '#64748b',
+                                font: { size: 9, family: 'Inter' }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            backgroundColor: 'rgba(15, 21, 32, 0.95)',
+                            titleColor: '#e2e8f0',
+                            bodyColor: '#fff',
+                            borderColor: theme.color,
+                            borderWidth: 1,
+                            padding: 10,
+                            displayColors: false,
+                            callbacks: {
+                                label: function(context) {
+                                    return ` ${theme.label}: ${context.parsed.y} ${theme.unit}`;
+                                }
+                            }
+                        }
+                    }
                 }
             });
         }
 
         const chart = charts[cid];
-        const recent = sortedData.slice(-40);
-        chart.data.labels = recent.map(p => new Date(p.timestamp).toLocaleTimeString());
-        chart.data.datasets[0].data = recent.map(p => p.data[key]);
+        const timeLabels = recentSamples.map(s => {
+            const d = s.time;
+            return d.getHours().toString().padStart(2, '0') + ':' +
+                   d.getMinutes().toString().padStart(2, '0') + ':' +
+                   d.getSeconds().toString().padStart(2, '0');
+        });
+
+        // Compute smart Y bounds with 10% breathing room
+        const padding = (maxVal - minVal) * 0.12 || 1;
+        chart.options.scales.y.suggestedMin = minVal - padding;
+        chart.options.scales.y.suggestedMax = maxVal + padding;
+
+        chart.data.labels = timeLabels;
+        chart.data.datasets[0].data = values;
         chart.update('none');
     });
 }
+
 
 // Tickets System
 async function loadTickets() {
@@ -872,11 +1349,543 @@ document.getElementById('ticket-form').onsubmit = async (e) => {
 // loadAlertsData and renderRules are defined below (extended versions)
 
 // Modal Toggle Helpers
-function showRegisterModal() { document.getElementById('register-modal').classList.remove('hidden'); }
+function showRegisterModal() {
+    document.getElementById('register-modal').classList.remove('hidden');
+    initRegisterComponentPicker();
+}
 window.showRegisterModal = showRegisterModal;
 
-function hideModal(id) { document.getElementById(id).classList.add('hidden'); }
+function hideModal(id) {
+    document.getElementById(id).classList.add('hidden');
+}
 window.hideModal = hideModal;
+
+// ─────────────────────────────────────────────────────────────────
+// HARDWARE COMPONENT SELECTION & MANAGEMENT
+// ─────────────────────────────────────────────────────────────────
+const AVAILABLE_HARDWARE_COMPONENTS = [
+    {
+        id: 'dht11',
+        name: 'DHT11 Sensor',
+        category: 'Environment',
+        icon: '🌡️',
+        color: '#10b981',
+        keys: ['temperature', 'humidity'],
+        units: { temperature: '°C', humidity: '%' },
+        desc: 'Basic ambient temp & humidity'
+    },
+    {
+        id: 'dht22',
+        name: 'DHT22 Sensor',
+        category: 'Environment',
+        icon: '🌡️',
+        color: '#00e5ff',
+        keys: ['temperature', 'humidity'],
+        units: { temperature: '°C', humidity: '%' },
+        desc: 'Precision temp & humidity'
+    },
+    {
+        id: 'bme280',
+        name: 'BME280 Environment',
+        category: 'Environment',
+        icon: '🌤️',
+        color: '#818cf8',
+        keys: ['temperature', 'humidity', 'pressure'],
+        units: { temperature: '°C', humidity: '%', pressure: 'hPa' },
+        desc: 'Temp, humidity & baro pressure'
+    },
+    {
+        id: 'ds18b20',
+        name: 'DS18B20 Probe',
+        category: 'Environment',
+        icon: '🌡️',
+        color: '#f59e0b',
+        keys: ['temperature'],
+        units: { temperature: '°C' },
+        desc: 'Waterproof 1-Wire temp probe'
+    },
+    {
+        id: 'hcsr04',
+        name: 'HC-SR04 Ultrasonic',
+        category: 'Distance',
+        icon: '📡',
+        color: '#a855f7',
+        keys: ['distance_cm'],
+        units: { distance_cm: 'cm' },
+        desc: 'Sonic distance & tank level'
+    },
+    {
+        id: 'mq2',
+        name: 'MQ-2 Gas / Smoke',
+        category: 'Air Quality',
+        icon: '💨',
+        color: '#f59e0b',
+        keys: ['gas_level', 'gas_alert'],
+        units: { gas_level: 'ppm', gas_alert: 'alert' },
+        desc: 'LPG, smoke & flammable gas'
+    },
+    {
+        id: 'mq135',
+        name: 'MQ-135 Air Quality',
+        category: 'Air Quality',
+        icon: '🌫️',
+        color: '#fb923c',
+        keys: ['air_quality', 'air_alert'],
+        units: { air_quality: 'ppm', air_alert: 'alert' },
+        desc: 'CO2, ammonia, toxic gas'
+    },
+    {
+        id: 'pms5003',
+        name: 'PMS5003 Dust PM2.5',
+        category: 'Air Quality',
+        icon: '💨',
+        color: '#f43f5e',
+        keys: ['pm25', 'pm10'],
+        units: { pm25: 'µg/m³', pm10: 'µg/m³' },
+        desc: 'Laser PM2.5 & PM10 particle count'
+    },
+    {
+        id: 'soil_moisture',
+        name: 'Soil Moisture Sensor',
+        category: 'Agriculture',
+        icon: '🌱',
+        color: '#10b981',
+        keys: ['soil_moisture'],
+        units: { soil_moisture: '%' },
+        desc: 'Capacitive / resistive soil hydration'
+    },
+    {
+        id: 'rain_sensor',
+        name: 'Rain Detector',
+        category: 'Agriculture',
+        icon: '🌧️',
+        color: '#38bdf8',
+        keys: ['rain_analog', 'raining'],
+        units: { rain_analog: '%', raining: 'state' },
+        desc: 'Precipitation surface plate'
+    },
+    {
+        id: 'ldr',
+        name: 'LDR Light Sensor',
+        category: 'Light',
+        icon: '☀️',
+        color: '#eab308',
+        keys: ['light_level'],
+        units: { light_level: 'lux' },
+        desc: 'Analog photoresistor illumination'
+    },
+    {
+        id: 'bh1750',
+        name: 'BH1750 Lux Meter',
+        category: 'Light',
+        icon: '💡',
+        color: '#facc15',
+        keys: ['lux'],
+        units: { lux: 'lux' },
+        desc: 'Digital I2C ambient light'
+    },
+    {
+        id: 'pir',
+        name: 'PIR Motion HC-SR501',
+        category: 'Motion',
+        icon: '👁️',
+        color: '#ec4899',
+        keys: ['motion'],
+        units: { motion: 'state' },
+        desc: 'Passive infrared human presence'
+    },
+    {
+        id: 'mpu6050',
+        name: 'MPU-6050 IMU',
+        category: 'Motion',
+        icon: '⚡',
+        color: '#06b6d4',
+        keys: ['accel_x', 'accel_y', 'accel_z'],
+        units: { accel_x: 'g', accel_y: 'g', accel_z: 'g' },
+        desc: '6-axis accelerometer & gyro'
+    },
+    {
+        id: 'flame',
+        name: 'Flame Sensor',
+        category: 'Safety',
+        icon: '🔥',
+        color: '#ef4444',
+        keys: ['flame_detected', 'flame_level'],
+        units: { flame_detected: 'state', flame_level: 'index' },
+        desc: 'Infrared fire / flame optical detector'
+    },
+    {
+        id: 'ina219',
+        name: 'INA219 Power Monitor',
+        category: 'Power',
+        icon: '🔋',
+        color: '#22c55e',
+        keys: ['voltage', 'current_mA', 'power_mW'],
+        units: { voltage: 'V', current_mA: 'mA', power_mW: 'mW' },
+        desc: 'I2C Voltage, current & power monitor'
+    },
+    {
+        id: 'relay_1ch',
+        name: 'Relay Switch',
+        category: 'Actuator',
+        icon: '🔌',
+        color: '#f97316',
+        keys: ['relay_state'],
+        units: { relay_state: 'state' },
+        desc: 'High-voltage load relay switch'
+    },
+    {
+        id: 'water_pump',
+        name: 'Water Pump Control',
+        category: 'Actuator',
+        icon: '💧',
+        color: '#0284c7',
+        keys: ['pump_state'],
+        units: { pump_state: 'state' },
+        desc: 'DC irrigation / cooling pump driver'
+    }
+];
+
+let regCompActiveCategory = 'all';
+let regCompSearchQuery = '';
+let editCompActiveCategory = 'all';
+let editCompSearchQuery = '';
+
+function initRegisterComponentPicker() {
+    selectedRegComponents = [];
+    regCompActiveCategory = 'all';
+    regCompSearchQuery = '';
+    const searchInput = document.getElementById('reg-comp-search');
+    if (searchInput) searchInput.value = '';
+    renderRegComponentsGrid('all', '');
+    renderRegSelectedChips();
+}
+
+function renderRegComponentsGrid(category = 'all', query = '') {
+    const grid = document.getElementById('reg-components-grid');
+    if (!grid) return;
+
+    const q = (query || '').toLowerCase().trim();
+    const filtered = AVAILABLE_HARDWARE_COMPONENTS.filter(comp => {
+        const matchCat = category === 'all' || comp.category.toLowerCase() === category.toLowerCase();
+        const matchQ = !q || comp.name.toLowerCase().includes(q) ||
+                       comp.keys.some(k => k.toLowerCase().includes(q)) ||
+                       comp.category.toLowerCase().includes(q);
+        return matchCat && matchQ;
+    });
+
+    if (!filtered.length) {
+        grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; color: var(--text-muted); padding: 20px; font-size: 0.8rem;">No matching sensors found. Try searching or add a Custom Sensor below.</div>';
+        return;
+    }
+
+    grid.innerHTML = filtered.map(comp => {
+        const isSelected = selectedRegComponents.some(c => c.id === comp.id);
+        return `
+            <div class="comp-tile ${isSelected ? 'selected' : ''}" onclick="toggleRegComponent('${comp.id}')">
+                <div class="comp-check"><i class="fas fa-check"></i></div>
+                <div class="comp-icon">${comp.icon}</div>
+                <div class="comp-name">${comp.name}</div>
+                <div class="comp-keys">${comp.keys.join(', ')}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleRegComponent(compId) {
+    const existingIdx = selectedRegComponents.findIndex(c => c.id === compId);
+    if (existingIdx >= 0) {
+        selectedRegComponents.splice(existingIdx, 1);
+    } else {
+        const comp = AVAILABLE_HARDWARE_COMPONENTS.find(c => c.id === compId);
+        if (comp) {
+            selectedRegComponents.push({ ...comp });
+        }
+    }
+    renderRegComponentsGrid(regCompActiveCategory, regCompSearchQuery);
+    renderRegSelectedChips();
+}
+window.toggleRegComponent = toggleRegComponent;
+
+function filterRegCompCategory(cat, btn) {
+    regCompActiveCategory = cat;
+    const catContainer = document.getElementById('reg-comp-categories');
+    if (catContainer) {
+        catContainer.querySelectorAll('.comp-cat-btn').forEach(b => b.classList.remove('active'));
+    }
+    if (btn) btn.classList.add('active');
+    renderRegComponentsGrid(cat, regCompSearchQuery);
+}
+window.filterRegCompCategory = filterRegCompCategory;
+
+function onRegCompSearch(val) {
+    regCompSearchQuery = val;
+    renderRegComponentsGrid(regCompActiveCategory, val);
+}
+window.onRegCompSearch = onRegCompSearch;
+
+function renderRegSelectedChips() {
+    const bar = document.getElementById('reg-selected-chips-bar');
+    const badge = document.getElementById('reg-comp-count-badge');
+    if (badge) badge.innerText = `${selectedRegComponents.length} Selected`;
+
+    if (!bar) return;
+    if (!selectedRegComponents.length) {
+        bar.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">No components selected yet. Click any sensor tile above.</span>';
+        return;
+    }
+
+    bar.innerHTML = selectedRegComponents.map((c, idx) => `
+        <span class="selected-comp-pill">
+            <span>${c.icon || '🔌'}</span> ${c.name}
+            <span class="remove-btn" onclick="removeRegComponent(${idx})">&times;</span>
+        </span>
+    `).join('');
+}
+
+function removeRegComponent(idx) {
+    selectedRegComponents.splice(idx, 1);
+    renderRegComponentsGrid(regCompActiveCategory, regCompSearchQuery);
+    renderRegSelectedChips();
+}
+window.removeRegComponent = removeRegComponent;
+
+function clearAllSelectedRegComponents() {
+    selectedRegComponents = [];
+    renderRegComponentsGrid(regCompActiveCategory, regCompSearchQuery);
+    renderRegSelectedChips();
+}
+window.clearAllSelectedRegComponents = clearAllSelectedRegComponents;
+
+function toggleCustomSensorBox(mode = 'reg') {
+    const box = document.getElementById(`${mode}-custom-sensor-box`);
+    if (box) {
+        box.style.display = box.style.display === 'none' ? 'block' : 'none';
+    }
+}
+window.toggleCustomSensorBox = toggleCustomSensorBox;
+
+function addCustomRegComponent(mode = 'reg') {
+    const nameEl = document.getElementById(`${mode}-custom-name`);
+    const keyEl = document.getElementById(`${mode}-custom-key`);
+    const unitEl = document.getElementById(`${mode}-custom-unit`);
+
+    const name = nameEl?.value.trim();
+    const key = keyEl?.value.trim().toLowerCase().replace(/\s+/g, '_');
+    const unit = unitEl?.value.trim() || '';
+
+    if (!name || !key) {
+        showNotification("Please provide both Sensor Name and JSON Field Key", "warning");
+        return;
+    }
+
+    const customComp = {
+        id: 'custom_' + Date.now(),
+        name: name,
+        category: 'Custom',
+        icon: '⚙️',
+        color: '#00e5ff',
+        keys: [key],
+        unit: unit,
+        units: { [key]: unit },
+        desc: 'Custom wired hardware sensor'
+    };
+
+    if (mode === 'reg') {
+        selectedRegComponents.push(customComp);
+        renderRegSelectedChips();
+    } else {
+        selectedEditComponents.push(customComp);
+        renderEditSelectedChips();
+    }
+
+    // Reset inputs
+    if (nameEl) nameEl.value = '';
+    if (keyEl) keyEl.value = '';
+    if (unitEl) unitEl.value = '';
+    toggleCustomSensorBox(mode);
+    showNotification(`Custom component '${name}' added!`, "success");
+}
+window.addCustomRegComponent = addCustomRegComponent;
+
+// ─────────────────────────────────────────────────────────────────
+// EDIT COMPONENTS MODAL FOR EXISTING DEVICES
+// ─────────────────────────────────────────────────────────────────
+function openEditComponentsModal(deviceId = null) {
+    let dev = null;
+    if (deviceId) {
+        dev = (cachedDevices || []).find(d => d.id === deviceId);
+    } else if (currentActiveDevice) {
+        dev = currentActiveDevice;
+    }
+
+    if (!dev && cachedDevices.length > 0) {
+        dev = cachedDevices[0];
+    }
+
+    if (!dev) {
+        showNotification("No device selected for component configuration", "warning");
+        return;
+    }
+
+    editingDeviceId = dev.id;
+    selectedEditComponents = JSON.parse(JSON.stringify(dev.components || []));
+    editCompActiveCategory = 'all';
+    editCompSearchQuery = '';
+
+    const infoEl = document.getElementById('edit-comp-device-info');
+    if (infoEl) infoEl.innerText = `Configuring sensors for: ${dev.name} (${dev.hardware_id})`;
+
+    const searchInput = document.getElementById('edit-comp-search');
+    if (searchInput) searchInput.value = '';
+
+    renderEditComponentsGrid('all', '');
+    renderEditSelectedChips();
+
+    const modal = document.getElementById('edit-components-modal');
+    if (modal) modal.classList.remove('hidden');
+}
+window.openEditComponentsModal = openEditComponentsModal;
+
+function renderEditComponentsGrid(category = 'all', query = '') {
+    const grid = document.getElementById('edit-components-grid');
+    if (!grid) return;
+
+    const q = (query || '').toLowerCase().trim();
+    const filtered = AVAILABLE_HARDWARE_COMPONENTS.filter(comp => {
+        const matchCat = category === 'all' || comp.category.toLowerCase() === category.toLowerCase();
+        const matchQ = !q || comp.name.toLowerCase().includes(q) ||
+                       comp.keys.some(k => k.toLowerCase().includes(q)) ||
+                       comp.category.toLowerCase().includes(q);
+        return matchCat && matchQ;
+    });
+
+    grid.innerHTML = filtered.map(comp => {
+        const isSelected = selectedEditComponents.some(c => c.id === comp.id);
+        return `
+            <div class="comp-tile ${isSelected ? 'selected' : ''}" onclick="toggleEditComponent('${comp.id}')">
+                <div class="comp-check"><i class="fas fa-check"></i></div>
+                <div class="comp-icon">${comp.icon}</div>
+                <div class="comp-name">${comp.name}</div>
+                <div class="comp-keys">${comp.keys.join(', ')}</div>
+            </div>
+        `;
+    }).join('');
+}
+
+function toggleEditComponent(compId) {
+    const existingIdx = selectedEditComponents.findIndex(c => c.id === compId);
+    if (existingIdx >= 0) {
+        selectedEditComponents.splice(existingIdx, 1);
+    } else {
+        const comp = AVAILABLE_HARDWARE_COMPONENTS.find(c => c.id === compId);
+        if (comp) {
+            selectedEditComponents.push({ ...comp });
+        }
+    }
+    renderEditComponentsGrid(editCompActiveCategory, editCompSearchQuery);
+    renderEditSelectedChips();
+}
+window.toggleEditComponent = toggleEditComponent;
+
+function filterEditCompCategory(cat, btn) {
+    editCompActiveCategory = cat;
+    const catContainer = document.getElementById('edit-comp-categories');
+    if (catContainer) {
+        catContainer.querySelectorAll('.comp-cat-btn').forEach(b => b.classList.remove('active'));
+    }
+    if (btn) btn.classList.add('active');
+    renderEditComponentsGrid(cat, editCompSearchQuery);
+}
+window.filterEditCompCategory = filterEditCompCategory;
+
+function onEditCompSearch(val) {
+    editCompSearchQuery = val;
+    renderEditComponentsGrid(editCompActiveCategory, val);
+}
+window.onEditCompSearch = onEditCompSearch;
+
+function renderEditSelectedChips() {
+    const bar = document.getElementById('edit-selected-chips-bar');
+    const badge = document.getElementById('edit-comp-count-badge');
+    if (badge) badge.innerText = `${selectedEditComponents.length} Selected`;
+
+    if (!bar) return;
+    if (!selectedEditComponents.length) {
+        bar.innerHTML = '<span style="font-size: 0.75rem; color: var(--text-muted); font-style: italic;">No components selected yet. Click any sensor tile above.</span>';
+        return;
+    }
+
+    bar.innerHTML = selectedEditComponents.map((c, idx) => `
+        <span class="selected-comp-pill">
+            <span>${c.icon || '🔌'}</span> ${c.name}
+            <span class="remove-btn" onclick="removeEditComponent(${idx})">&times;</span>
+        </span>
+    `).join('');
+}
+
+function removeEditComponent(idx) {
+    selectedEditComponents.splice(idx, 1);
+    renderEditComponentsGrid(editCompActiveCategory, editCompSearchQuery);
+    renderEditSelectedChips();
+}
+window.removeEditComponent = removeEditComponent;
+
+function clearAllSelectedEditComponents() {
+    selectedEditComponents = [];
+    renderEditComponentsGrid(editCompActiveCategory, editCompSearchQuery);
+    renderEditSelectedChips();
+}
+window.clearAllSelectedEditComponents = clearAllSelectedEditComponents;
+
+async function saveEditedComponents() {
+    if (!editingDeviceId) return;
+    try {
+        const res = await fetch(`${API_BASE}/devices/${editingDeviceId}`, {
+            method: 'PATCH',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${currentToken}`
+            },
+            body: JSON.stringify({ components: selectedEditComponents })
+        });
+
+        if (res.ok) {
+            const updated = await res.json();
+            // Update cached devices
+            const idx = (cachedDevices || []).findIndex(d => d.id === editingDeviceId);
+            if (idx >= 0) cachedDevices[idx] = updated;
+
+            // If updating current active device in Details view
+            if (currentActiveDevice && currentActiveDevice.id === editingDeviceId) {
+                currentActiveDevice = updated;
+                renderSensorFilterToolbar(currentActiveDevice);
+                updateMgmtComponentsList(currentActiveDevice.components);
+
+                // Destroy old charts and reload
+                Object.keys(charts).forEach(k => {
+                    if (k.startsWith('detail-chart-')) {
+                        try { charts[k].destroy(); } catch (e) {}
+                        delete charts[k];
+                    }
+                });
+                const container = document.getElementById('charts-container');
+                if (container) container.innerHTML = '';
+                updateDetailView();
+            }
+
+            hideModal('edit-components-modal');
+            renderDevices(cachedDevices);
+            showNotification(`Updated sensors for ${updated.name}! Graphs refreshed.`, "success");
+        } else {
+            const err = await res.json();
+            showNotification(err.detail || "Failed to update components", "error");
+        }
+    } catch (e) {
+        showNotification("Server error updating components", "error");
+    }
+}
+window.saveEditedComponents = saveEditedComponents;
 
 
 // ─────────────────────────────────────────────────────────────────
@@ -1689,7 +2698,8 @@ document.getElementById('device-form').onsubmit = async (e) => {
     const data = {
         name: document.getElementById('device_name').value,
         hardware_id: document.getElementById('hardware_id').value,
-        device_type: document.getElementById('device_type').value
+        device_type: document.getElementById('device_type').value,
+        components: selectedRegComponents || []
     };
     const res = await fetch(`${API_BASE}/devices/`, {
         method: 'POST',
@@ -1699,9 +2709,10 @@ document.getElementById('device-form').onsubmit = async (e) => {
     if (res.ok) {
         const device = await res.json();
         hideModal('register-modal');
+        selectedRegComponents = [];
         loadDevices();
         loadIntegrationDevices();
-        showNotification(`Device Sync Successful! Secret Key: ${device.secret}`, "success");
+        showNotification(`Device '${device.name}' registered with ${data.components.length} components! Secret Key: ${device.secret}`, "success");
         if (confirm(`Device Registered! HWID: ${device.hardware_id}. Generate firmware now?`)) {
             goToFirmwareLab(device.hardware_id, device.secret, device.device_type);
         }
@@ -2033,6 +3044,7 @@ async function loadFleetMatrix() {
     try {
         const res = await fetch(`${API_BASE}/devices/`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         const devices = await res.json();
+        cachedDevices = devices;
         const grid = document.getElementById('fleet-matrix-grid');
         grid.innerHTML = '';
         if (!devices.length) { grid.innerHTML = '<p class="text-muted">No devices registered.</p>'; return; }
@@ -2040,33 +3052,134 @@ async function loadFleetMatrix() {
             const card = document.createElement('div');
             card.className = 'matrix-card';
             const cid = `fleet-chart-${dev.hardware_id}`;
+            const compList = dev.components || [];
+            const compChipsHtml = compList.length > 0 ? `
+                <div style="display: flex; flex-wrap: wrap; gap: 4px; margin-bottom: 10px;">
+                    ${compList.map(c => `<span class="device-comp-tag" style="font-size:0.65rem;">${c.icon || '🔌'} ${c.name}</span>`).join('')}
+                </div>` : '';
+
             card.innerHTML = `
-                <div class="card-header"><h3>${dev.name}</h3><span class="badge badge-low">LIVE</span></div>
-                <p style="font-size:0.75rem;color:var(--text-muted);margin-bottom:12px;">HWID: ${dev.hardware_id}</p>
-                <div style="height:100px;"><canvas id="${cid}"></canvas></div>
-                <button class="primary-btn" style="width:100%;justify-content:center;margin-top:15px;" onclick="openDeviceDetail('${dev.hardware_id}','${dev.name}')">Open Analytics</button>`;
+                <div class="card-header" style="margin-bottom: 8px;">
+                    <div>
+                        <h3 style="font-size: 1rem;">${dev.name}</h3>
+                        <p style="font-size:0.7rem;color:var(--text-muted);">HWID: ${dev.hardware_id}</p>
+                    </div>
+                    <span class="badge badge-low">LIVE</span>
+                </div>
+                ${compChipsHtml}
+                <div id="${cid}-reading" style="display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 6px;">
+                    <span style="font-size: 0.72rem; color: var(--text-muted); font-family: 'Fira Code', monospace;" id="${cid}-metric-name">STREAMING</span>
+                    <span style="font-size: 1.1rem; font-weight: 700; color: #fff; font-family: var(--font-display);" id="${cid}-val-text">--</span>
+                </div>
+                <div style="height:120px; position: relative;"><canvas id="${cid}"></canvas></div>
+                <div style="display: grid; grid-template-columns: 1fr 2fr; gap: 8px; margin-top: 14px;">
+                    <button class="accent-btn" style="justify-content: center; font-size: 0.75rem; padding: 6px 10px;" onclick="openEditComponentsModal(${dev.id})">
+                        <i class="fas fa-sliders-h"></i>
+                    </button>
+                    <button class="primary-btn" style="justify-content:center; font-size: 0.78rem; padding: 6px 12px;" onclick="openDeviceDetail('${dev.hardware_id}','${dev.name}')">
+                        <i class="fas fa-chart-line" style="margin-right: 5px;"></i> Analytics
+                    </button>
+                </div>`;
             grid.appendChild(card);
-            loadMiniFleetChart(dev.hardware_id, cid);
+            loadMiniFleetChart(dev, cid);
         }
     } catch (e) { }
 }
 
-async function loadMiniFleetChart(hwid, cid) {
+async function loadMiniFleetChart(dev, cid) {
+    const hwid = typeof dev === 'string' ? dev : dev.hardware_id;
+    const deviceObj = typeof dev === 'object' ? dev : ((cachedDevices || []).find(d => d.hardware_id === hwid) || {});
     try {
-        const res = await fetch(`${API_BASE}/telemetry/${hwid}?limit=20`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
+        const res = await fetch(`${API_BASE}/telemetry/${hwid}?limit=25`, { headers: { 'Authorization': `Bearer ${currentToken}` } });
         const data = await res.json();
         if (!data.length) return;
         const sorted = data.sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
-        const key = Object.keys(sorted[0].data)[0];
+
+        const IGNORED_KEYS = new Set(['hwid', 'hardware_id', 'node_id', 'node', 'device_id', 'secret', 'timestamp', 'time', 'created_at', 'id', 'user_id', 'status', 'registered', 'device_type', 'token']);
+        
+        // Find best sensor key
+        let key = null;
+        let compMatch = null;
+        const compList = deviceObj.components || [];
+        for (const c of compList) {
+            for (const k of (c.keys || [])) {
+                if (sorted.some(p => p.data && p.data[k] !== undefined && p.data[k] !== null)) {
+                    key = k;
+                    compMatch = c;
+                    break;
+                }
+            }
+            if (key) break;
+        }
+
+        if (!key) {
+            const firstWithData = sorted[sorted.length - 1].data || {};
+            key = Object.keys(firstWithData).find(k => !IGNORED_KEYS.has(k.toLowerCase()) && !isNaN(Number(firstWithData[k]))) || Object.keys(firstWithData)[0];
+        }
+
+        if (!key) return;
+
+        const theme = getSensorTheme(key, compMatch);
+        const validPoints = sorted.filter(p => p.data && p.data[key] !== undefined && p.data[key] !== null).map(p => ({
+            time: new Date(p.timestamp || Date.now()),
+            val: Number(p.data[key])
+        })).filter(p => !isNaN(p.val));
+
+        if (!validPoints.length) return;
+
+        const latestVal = validPoints[validPoints.length - 1].val;
+        const metricNameEl = document.getElementById(`${cid}-metric-name`);
+        const valTextEl = document.getElementById(`${cid}-val-text`);
+        if (metricNameEl) metricNameEl.innerHTML = `${theme.emoji} ${theme.label.toUpperCase()}`;
+        if (valTextEl) valTextEl.innerHTML = `${Number.isInteger(latestVal) ? latestVal : latestVal.toFixed(1)} <span style="font-size: 0.75rem; color: ${theme.color};">${theme.unit}</span>`;
+
         const ctx = document.getElementById(cid);
         if (!ctx) return;
-        new Chart(ctx, {
+
+        const canvasCtx = ctx.getContext('2d');
+        const grad = canvasCtx.createLinearGradient(0, 0, 0, 120);
+        grad.addColorStop(0, theme.bg.replace('0.14', '0.3'));
+        grad.addColorStop(1, 'rgba(0,0,0,0)');
+
+        new Chart(canvasCtx, {
             type: 'line',
             data: {
-                labels: sorted.map(p => ''),
-                datasets: [{ data: sorted.map(p => p.data[key]), borderColor: '#8b5cf6', borderWidth: 2, pointRadius: 0, fill: true, backgroundColor: 'rgba(139,92,246,0.1)', tension: 0.4 }]
+                labels: validPoints.map(p => {
+                    const d = p.time;
+                    return d.getHours().toString().padStart(2, '0') + ':' + d.getMinutes().toString().padStart(2, '0');
+                }),
+                datasets: [{
+                    data: validPoints.map(p => p.val),
+                    borderColor: theme.color,
+                    borderWidth: 2,
+                    pointRadius: 0,
+                    fill: true,
+                    backgroundColor: grad,
+                    tension: 0.35
+                }]
             },
-            options: { responsive: true, maintainAspectRatio: false, scales: { x: { display: false }, y: { display: false } }, plugins: { legend: { display: false } } }
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                scales: {
+                    x: {
+                        display: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: { color: '#64748b', font: { size: 9 }, maxTicksLimit: 4 }
+                    },
+                    y: {
+                        display: true,
+                        grid: { color: 'rgba(255, 255, 255, 0.04)' },
+                        ticks: {
+                            color: '#64748b',
+                            font: { size: 9 },
+                            maxTicksLimit: 3,
+                            callback: v => v + (theme.unit ? ' ' + theme.unit : '')
+                        }
+                    }
+                },
+                plugins: { legend: { display: false } }
+            }
         });
     } catch (e) { }
 }

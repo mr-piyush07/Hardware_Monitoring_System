@@ -14,6 +14,7 @@ class Device(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, db_column='user_id', null=True, blank=True)
     last_seen = models.DateTimeField(null=True, blank=True)
     device_type = models.CharField(max_length=100, default="ESP")
+    components = models.JSONField(default=list, blank=True)
 
     class Meta:
         db_table = "devices"
