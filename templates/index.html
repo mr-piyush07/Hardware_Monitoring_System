@@ -1208,21 +1208,46 @@
 
     <!-- SMTP Modal -->
     <div id="smtp-modal" class="modal hidden">
-        <div class="modal-content" style="max-width: 600px;">
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px;">
-                <h3>SMTP Interface Deployment</h3>
+        <div class="modal-content" style="max-width: 620px; max-height: 90vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h3 style="margin: 0; font-size: 1.25rem;">SMTP Relay Deployment</h3>
+                    <p style="font-size: 0.8rem; color: var(--text-muted); margin-top: 4px;">Configure outbound email credentials for instant trigger & offline notifications</p>
+                </div>
                 <button class="accent-btn" onclick="hideModal('smtp-modal')"
-                    style="border:none; background:none; font-size:1.5rem;">&times;</button>
+                    style="border:none; background:none; font-size:1.5rem; cursor: pointer;">&times;</button>
             </div>
+
+            <!-- Quick Service Presets -->
+            <div style="margin-bottom: 18px; padding: 12px; background: rgba(255,255,255,0.03); border: 1px solid var(--border); border-radius: 12px;">
+                <span style="font-size: 0.75rem; font-weight: 700; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px;">Quick Presets:</span>
+                <div style="display: flex; gap: 8px; margin-top: 8px; flex-wrap: wrap;">
+                    <button type="button" class="accent-btn" onclick="applySmtpPreset('gmail')" style="font-size: 0.78rem; padding: 5px 12px;">
+                        <i class="fab fa-google" style="color: #ea4335;"></i> Gmail (587 TLS)
+                    </button>
+                    <button type="button" class="accent-btn" onclick="applySmtpPreset('outlook')" style="font-size: 0.78rem; padding: 5px 12px;">
+                        <i class="fab fa-microsoft" style="color: #00a4ef;"></i> Outlook (587 TLS)
+                    </button>
+                    <button type="button" class="accent-btn" onclick="applySmtpPreset('ssl465')" style="font-size: 0.78rem; padding: 5px 12px;">
+                        <i class="fas fa-shield-alt" style="color: #10b981;"></i> Direct SSL (465)
+                    </button>
+                </div>
+            </div>
+
+            <!-- Gmail App Password Helper -->
+            <div style="margin-bottom: 18px; padding: 10px 14px; background: rgba(59, 130, 246, 0.08); border-left: 3px solid #3b82f6; border-radius: 6px; font-size: 0.78rem; color: #93c5fd; line-height: 1.4;">
+                <i class="fas fa-info-circle"></i> <strong>Important for Gmail:</strong> Do not enter your regular login password. Go to <strong>Google Account &rarr; Security &rarr; 2-Step Verification &rarr; App Passwords</strong> and generate a 16-character App Password.
+            </div>
+
             <form id="smtp-form">
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label>Sender Email Address</label>
-                        <input type="email" id="smtp-from-email" required placeholder="name@company.com">
+                        <input type="email" id="smtp-from-email" required placeholder="name@gmail.com">
                     </div>
                     <div class="input-group">
                         <label>Sender Name (Alias)</label>
-                        <input type="text" id="smtp-from-name" required placeholder="NEXUS_CORE Monitor">
+                        <input type="text" id="smtp-from-name" required placeholder="IoT Guard Alert Engine">
                     </div>
                 </div>
 
@@ -1233,9 +1258,9 @@
                     </div>
                     <div class="input-group">
                         <label>SMTP Relay Port</label>
-                        <select id="smtp-port">
+                        <select id="smtp-port" onchange="onSmtpPortChanged(this.value)">
                             <option value="587">587 (TLS/STARTTLS)</option>
-                            <option value="465">465 (SSL)</option>
+                            <option value="465">465 (Direct SSL)</option>
                             <option value="25">25 (Legacy/Non-secure)</option>
                         </select>
                     </div>
@@ -1268,11 +1293,11 @@
                 <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
                     <div class="input-group">
                         <label>Relay Username</label>
-                        <input type="text" id="smtp-user" placeholder="SMTP Username">
+                        <input type="text" id="smtp-user" placeholder="e.g. name@gmail.com">
                     </div>
                     <div class="input-group">
-                        <label>Relay App Password</label>
-                        <input type="password" id="smtp-pass" placeholder="••••••••">
+                        <label>Relay Password / App Password</label>
+                        <input type="password" id="smtp-pass" placeholder="16-character App Password">
                     </div>
                 </div>
 
@@ -1472,7 +1497,7 @@
         <span id="toast-message">Message here</span>
     </div>
 
-    <script src="/static/app.js?v=401"></script>
+    <script src="/static/app.js?v=402"></script>
 </body>
 
 </html>

@@ -3532,7 +3532,10 @@ window.deleteRule = deleteRule;
 // SMTP Form Handlers
 // ─────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
-    document.getElementById('add-smtp-btn')?.addEventListener('click', () => document.getElementById('smtp-modal').classList.remove('hidden'));
+    document.getElementById('add-smtp-btn')?.addEventListener('click', () => {
+        document.getElementById('smtp-modal').classList.remove('hidden');
+        setTimeout(setupCustomSelects, 50);
+    });
     document.getElementById('add-template-btn')?.addEventListener('click', () => document.getElementById('template-modal').classList.remove('hidden'));
 
     document.getElementById('smtp-form')?.addEventListener('submit', async (e) => {
@@ -3753,11 +3756,93 @@ function renderSmtpList(list) {
     container.innerHTML = list.length ? '' : '<p class="empty-msg">No SMTP relays configured.</p>';
     list.forEach(s => {
         const div = document.createElement('div');
-        div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;';
-        div.innerHTML = `<div><p style="font-weight:600;font-size:0.9rem;">${s.name}</p><p style="font-size:0.75rem;color:var(--text-muted);">${s.from_email} · ${s.security}</p></div><span class="badge badge-low">ACTIVE</span>`;
+        div.style.cssText = 'display:flex;justify-content:space-between;align-items:center;padding:12px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;margin-bottom:6px;';
+        div.innerHTML = `
+            <div>
+                <p style="font-weight:600;font-size:0.9rem;">${s.name || s.host}</p>
+                <p style="font-size:0.75rem;color:var(--text-muted);">${s.from_email} · Port ${s.port} · ${s.security}</p>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px;">
+                <span class="badge badge-low">ACTIVE</span>
+                <button class="accent-btn" style="color:var(--danger);border-color:rgba(239,68,68,0.3);padding:6px 10px;font-size:0.8rem;" title="Delete SMTP Relay" onclick="deleteSmtp(${s.id})">
+                    <i class="fas fa-trash"></i>
+                </button>
+            </div>`;
         container.appendChild(div);
     });
 }
+
+async function deleteSmtp(id) {
+    if (!confirm('Are you sure you want to decommission this SMTP Relay configuration?')) return;
+    try {
+        const res = await fetch(`${API_BASE}/alerts/smtp/${id}`, {
+            method: 'DELETE',
+            headers: { 'Authorization': `Bearer ${currentToken}` }
+        });
+        if (res.ok) {
+            showNotification('SMTP Relay deleted successfully', 'success');
+            loadAlertsData();
+        } else {
+            const err = await res.json();
+            showNotification(err.detail || 'Failed to delete SMTP relay', 'error');
+        }
+    } catch (e) {
+        showNotification('Connection error while deleting SMTP relay', 'error');
+    }
+}
+window.deleteSmtp = deleteSmtp;
+
+function applySmtpPreset(type) {
+    const hostEl = document.getElementById('smtp-host');
+    const portEl = document.getElementById('smtp-port');
+    const secEl = document.getElementById('smtp-security');
+    const authEl = document.getElementById('smtp-auth');
+    const heloEl = document.getElementById('smtp-helo');
+
+    if (type === 'gmail') {
+        if (hostEl) hostEl.value = 'smtp.gmail.com';
+        if (portEl) portEl.value = '587';
+        if (secEl) secEl.value = 'TLS';
+        if (authEl) authEl.value = 'Standard';
+        if (heloEl) heloEl.value = 'IoT-Guard-Node';
+    } else if (type === 'outlook') {
+        if (hostEl) hostEl.value = 'smtp.office365.com';
+        if (portEl) portEl.value = '587';
+        if (secEl) secEl.value = 'TLS';
+        if (authEl) authEl.value = 'Standard';
+        if (heloEl) heloEl.value = 'IoT-Guard-Node';
+    } else if (type === 'ssl465') {
+        if (portEl) portEl.value = '465';
+        if (secEl) secEl.value = 'SSL';
+        if (authEl) authEl.value = 'Standard';
+    }
+
+    // Refresh custom dropdown triggers
+    document.querySelectorAll('.custom-select-container').forEach(c => c.remove());
+    document.querySelectorAll('select').forEach(s => delete s.dataset.customized);
+    setupCustomSelects();
+
+    showNotification(`Applied ${type.toUpperCase()} presets!`, 'info');
+}
+window.applySmtpPreset = applySmtpPreset;
+
+function onSmtpPortChanged(port) {
+    const secEl = document.getElementById('smtp-security');
+    if (!secEl) return;
+    if (port === '465') {
+        secEl.value = 'SSL';
+    } else if (port === '587') {
+        secEl.value = 'TLS';
+    } else if (port === '25') {
+        secEl.value = 'None';
+    }
+    // Refresh custom selects
+    document.querySelectorAll('.custom-select-container').forEach(c => c.remove());
+    document.querySelectorAll('select').forEach(s => delete s.dataset.customized);
+    setupCustomSelects();
+}
+window.onSmtpPortChanged = onSmtpPortChanged;
+
 
 function renderTemplateList(list) {
     const container = document.getElementById('template-list');
